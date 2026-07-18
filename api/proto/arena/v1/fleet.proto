@@ -1,0 +1,544 @@
+syntax = "proto3";
+
+package arena.v1;
+
+import "arena/v1/gameserver.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/moepig/arena/gen/arena/v1;arenav1";
+
+// Fleet is the declaratively managed resource (DESIGN_v2 §5.4).
+// Identity is (namespace, name); "id" is a server-assigned internal UUID
+// that never appears in manifests.
+message Fleet {
+  // Server-assigned UUID.
+  string id = 1;
+
+  string namespace = 2;
+
+  // Name. Pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$, max length 63.
+  string name = 3;
+
+  // Metadata labels (also carries the arenactl management marker,
+  // e.g. arena.dev/managed-by).
+  map<string, string> labels = 4;
+
+  // Desired specification.
+  FleetSpec spec = 5;
+
+  // Observed status. Server-owned; not writable via the API.
+  FleetStatus status = 6;
+
+  // Incremented on every template change (rolling updates).
+  int64 generation = 7;
+
+  // Hash of spec.template, propagated to GameServers.
+  string spec_hash = 8;
+
+  // Optimistic-lock version. Required on UpdateFleet.
+  int64 version = 9;
+
+  // Timestamps (epoch seconds).
+  int64 created_at = 10;
+  int64 updated_at = 11;
+}
+
+// FleetSpec is the user-controlled part of a Fleet. This message is also the
+// schema for the manifest "spec" block (YAML → JSON → protojson).
+message FleetSpec {
+  // Desired replica count (0-10000).
+  // Ownership rule (DESIGN_v2 §4.4, §5.4.4):
+  //   - autoscaling.enabled=false: owned by the user / manifest.
+  //   - autoscaling.enabled=true:  owned by the Autoscale reconciler; a
+  //     manifest that sets replicas is rejected with FAILED_PRECONDITION.
+  // When omitted on Apply, the server keeps the current value.
+  optional int32 replicas = 1;
+
+  // Scheduling strategy. Only effective in EC2 mode; ignored on Fargate
+  // (DESIGN_v2 §9.2).
+  enum Scheduling {
+    SCHEDULING_UNSPECIFIED = 0;
+    SCHEDULING_PACKED = 1;
+    SCHEDULING_DISTRIBUTED = 2;
+  }
+  Scheduling scheduling = 2;
+
+  // Template for GameServers launched by this Fleet.
+  GameServerTemplate template = 3;
+
+  // Autoscaler configuration. 1:1 with the Fleet, not a separate resource
+  // (DESIGN_v2 §3.1).
+  Autoscaling autoscaling = 4;
+
+  // Template rollout strategy (DESIGN_v3 §3.1). Defaults to RollingUpdate
+  // with 25% surge / 25% unavailable.
+  Strategy strategy = 5;
+
+  // Labels/annotations applied to Allocated servers that exceed the desired
+  // count during scale-down or an update, so the game can wind the session
+  // down and self-Shutdown (Agones allocationOverflow — DESIGN_v3 §3.2).
+  AllocationOverflow allocation_overflow = 6;
+
+  // Capacity selection per fleet (DESIGN_v3 §3.4) — the arena equivalent of
+  // Agones eviction.safe: Spot-heavy providers declare interruption
+  // tolerance, On-Demand-only providers declare "never evict". Omitted =
+  // controller defaults.
+  Capacity capacity = 7;
+
+  // Task networking overrides (DESIGN_v3 §3.4). Omitted = controller
+  // defaults.
+  Network network = 8;
+
+  // ECS stopTimeout for the game container (seconds): the SIGTERM → SIGKILL
+  // drain window used by Spot interruption and scale-down (DESIGN_v3 §6.3).
+  // Fargate caps this at 120. 0 = ECS default (30).
+  int32 drain_grace_seconds = 9;
+}
+
+// Capacity maps to the ECS capacityProviderStrategy (DESIGN_v3 §3.4).
+message Capacity {
+  repeated CapacityProvider providers = 1;
+}
+
+message CapacityProvider {
+  // e.g. "FARGATE", "FARGATE_SPOT", or a named EC2 capacity provider.
+  string name = 1;
+  int32 weight = 2;
+  int32 base = 3;
+}
+
+// Network overrides for launched tasks (awsvpc — DESIGN_v3 §3.4).
+message Network {
+  // Defaults to true (direct-connect model — DESIGN_v2 §6.1).
+  optional bool assign_public_ip = 1;
+  repeated string security_groups = 2;
+  repeated string subnets = 3;
+}
+
+// Strategy controls how template changes roll out across a fleet's servers
+// (generation = spec_hash; there is no GameServerSet — DESIGN_v3 §3.1).
+message Strategy {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    // Surge new-generation servers up, drain old-generation Ready servers
+    // as replacements arrive. Allocated/Reserved servers are never cut off.
+    TYPE_ROLLING_UPDATE = 1;
+    // Drain every old-generation Ready server at once and overflow-label the
+    // Allocated ones. Explicitly chooses downtime over gradual rollout.
+    TYPE_RECREATE = 2;
+  }
+  Type type = 1;
+
+  RollingUpdate rolling_update = 2;
+}
+
+message RollingUpdate {
+  // How many servers above spec.replicas may exist during an update.
+  // Absolute count ("3") or percentage of replicas ("25%", rounded up).
+  // Default "25%".
+  string max_surge = 1;
+
+  // How far the fleet-wide Ready count may dip below spec.replicas while old
+  // generations drain. Absolute count or percentage (rounded down).
+  // Default "25%".
+  string max_unavailable = 2;
+
+  // Optional deadline for old-generation Allocated servers: once an update
+  // has been in progress this long, remaining old Allocated servers are
+  // force-drained. 0 (default) waits indefinitely for sessions to end,
+  // matching Agones (DESIGN_v3 §3.1).
+  int64 drain_timeout_seconds = 3;
+}
+
+message AllocationOverflow {
+  map<string, string> labels = 1;
+  map<string, string> annotations = 2;
+}
+
+// FleetStatus is maintained by arena-controller.
+message FleetStatus {
+  int32 total = 1;
+  int32 ready = 2;
+  int32 allocated = 3;
+  int32 starting = 4;
+  int32 reserved = 5;
+
+  // Active GameServers on the current spec_hash generation. Equal to total
+  // when no rolling update is in progress (DESIGN_v3 §3.1).
+  int32 updated = 6;
+
+  // Fleet-wide Counter aggregation (DESIGN_v3 §5.1), refreshed by the
+  // controller from Redis on the reconcile cadence. Autoscaler input and
+  // observability; not a real-time view.
+  map<string, CounterAggregate> counters = 7;
+}
+
+message CounterAggregate {
+  int64 count = 1;
+  int64 capacity = 2;
+}
+
+// GameServerTemplate describes the GameServers a Fleet creates.
+message GameServerTemplate {
+  // Labels/annotations applied to created GameServers.
+  TemplateMetadata metadata = 1;
+
+  // GameServer specification.
+  GameServerSpec spec = 2;
+}
+
+message TemplateMetadata {
+  map<string, string> labels = 1;
+  map<string, string> annotations = 2;
+}
+
+// GameServerSpec maps to the ECS task definition synthesized by the
+// controller (SDK sidecar container is injected at generation time).
+message GameServerSpec {
+  // Single-container sugar (DESIGN_v3 §6.5): equivalent to a one-element
+  // `containers` list. Mutually exclusive with `containers`.
+  ContainerSpec container = 1;
+
+  // Exposed ports (on the game container).
+  repeated PortSpec ports = 2;
+
+  // Health-check configuration used by the Health reconciler.
+  HealthSpec health = 3;
+
+  // Multi-container tasks (DESIGN_v3 §6.5 P2). When used, `game_container`
+  // names the container that runs the game (SDK identity, ports).
+  repeated ContainerSpec containers = 4;
+  string game_container = 5;
+
+  // Task volumes (EFS / host bind) mountable via ContainerSpec.mount_points.
+  repeated VolumeSpec volumes = 6;
+}
+
+message ContainerSpec {
+  // Container image, e.g. "myregistry/gameserver:v1.2.3". Required.
+  string image = 1;
+
+  Resources resources = 2;
+
+  repeated EnvVar environment = 3;
+
+  // Container name; required in `containers`, ignored for the single
+  // `container` form (which is named "game").
+  string name = 4;
+
+  // Entrypoint / arguments / working directory (DESIGN_v3 §6.5 P1),
+  // mapping to the containerDefinition fields of the same names.
+  repeated string command = 5;
+  repeated string args = 6;
+  string working_directory = 7;
+
+  // Secrets Manager / SSM references injected as environment variables.
+  // Values never appear in manifests (DESIGN_v2 §5.4.6).
+  repeated SecretRef secrets = 8;
+
+  // Container-level startup health check (ECS healthCheck). A different
+  // role from SDK heartbeats: early detection of launch failures.
+  ContainerHealthCheck health_check = 9;
+
+  // Volume mounts referencing GameServerSpec.volumes by name.
+  repeated MountPoint mount_points = 10;
+}
+
+message SecretRef {
+  // Environment variable name.
+  string name = 1;
+  // Secrets Manager or SSM parameter ARN.
+  string value_from = 2;
+}
+
+message ContainerHealthCheck {
+  // e.g. ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+  repeated string command = 1;
+  int32 interval_seconds = 2;
+  int32 timeout_seconds = 3;
+  int32 retries = 4;
+  int32 start_period_seconds = 5;
+}
+
+message MountPoint {
+  // Name of a GameServerSpec.volumes entry.
+  string volume = 1;
+  string container_path = 2;
+  bool read_only = 3;
+}
+
+message VolumeSpec {
+  string name = 1;
+  EFSVolume efs = 2;
+  HostVolume host = 3;
+}
+
+message EFSVolume {
+  string file_system_id = 1;
+  string root_directory = 2;
+}
+
+message HostVolume {
+  string source_path = 1;
+}
+
+message Resources {
+  // CPU units (1024 = 1 vCPU), e.g. "1024".
+  string cpu = 1;
+
+  // Memory in MB, e.g. "2048".
+  string memory = 2;
+}
+
+message EnvVar {
+  string name = 1;
+  string value = 2;
+}
+
+// HealthSpec configures liveness expectations for the game server process.
+message HealthSpec {
+  // Grace period after start before health is evaluated. Default 30.
+  int32 initial_delay_seconds = 1;
+
+  // Expected heartbeat interval in seconds. Default 10.
+  int32 period_seconds = 2;
+
+  // Missed heartbeats before the server is marked Unhealthy. Default 3.
+  int32 failure_threshold = 3;
+
+  // Disable the heartbeat sweep for this fleet (SDK-less migration phase —
+  // DESIGN_v3 §2.6). Task-level failure detection (STOPPED events) stays on.
+  bool disabled = 4;
+}
+
+message PortSpec {
+  // Name of the port. Required.
+  string name = 1;
+
+  // Container port (1-65535). Required unless policy is PASSTHROUGH.
+  int32 container_port = 2;
+
+  // Protocol. Defaults to UDP when unspecified. TCPUDP expands into a
+  // TCP + UDP pair on the same port number.
+  Port.Protocol protocol = 3;
+
+  // Port assignment policy (DESIGN_v3 §6.2). awsvpc gives every task its own
+  // ENI, so no Dynamic policy exists — ports only need uniqueness within the
+  // task.
+  enum Policy {
+    // Static (the default): container_port is used as written.
+    POLICY_UNSPECIFIED = 0;
+    POLICY_STATIC = 1;
+    // The server assigns a stable port from the passthrough range at
+    // normalization time; the game reads it via the SDK (GetGameServer) or
+    // the ARENA_PORT_<NAME> environment variable instead of hardcoding it.
+    POLICY_PASSTHROUGH = 2;
+  }
+  Policy policy = 4;
+}
+
+// Autoscaling configuration (DESIGN_v2 §4.4).
+message Autoscaling {
+  bool enabled = 1;
+
+  AutoscalingPolicy policy = 2;
+
+  // Clamp bounds for the computed desired replicas (min >= 0, max >= 1).
+  int32 min_replicas = 3;
+  int32 max_replicas = 4;
+}
+
+message AutoscalingPolicy {
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_BUFFER = 1;
+    TYPE_SCHEDULE = 2;
+    TYPE_WEBHOOK = 3;
+    TYPE_COUNTER = 4;
+    TYPE_CHAIN = 5;
+  }
+  Type type = 1;
+
+  BufferPolicy buffer = 2;
+  repeated SchedulePolicy schedule = 3;
+  WebhookPolicy webhook = 4;
+  CounterPolicy counter = 5;
+  // Ordered chain (DESIGN_v3 §3.5): the first entry whose schedule matches
+  // "now" is applied; an entry without a schedule always matches (put the
+  // default last). Existing Schedule policies are sugar for a chain.
+  repeated ChainEntry chain = 6;
+}
+
+// CounterPolicy scales on aggregate Counter capacity (DESIGN_v3 §5.4):
+// keep `buffer_size` free capacity (or buffer_percent of total capacity)
+// available across the fleet.
+message CounterPolicy {
+  // Counter name, e.g. "rooms".
+  string key = 1;
+
+  // Free capacity to keep available. Mutually exclusive with buffer_percent.
+  int64 buffer_size = 2;
+
+  // Percentage (0-100) of aggregate capacity to keep free.
+  int32 buffer_percent = 3;
+}
+
+message ChainEntry {
+  // Optional activation window; absent = always applicable.
+  ChainSchedule schedule = 1;
+
+  // Policy applied while this entry is active. Chain inside chain is
+  // rejected at validation.
+  AutoscalingPolicy policy = 2;
+}
+
+message ChainSchedule {
+  // Cron expression for the window start.
+  string cron = 1;
+
+  // Window length from each cron firing.
+  int64 duration_seconds = 2;
+}
+
+// desired = allocated + buffer, clamped to [min_replicas, max_replicas].
+message BufferPolicy {
+  // Absolute number of ready servers to keep. Mutually exclusive with
+  // buffer_percent.
+  int32 buffer_size = 1;
+
+  // Percentage (0-100) of allocated servers to keep ready.
+  int32 buffer_percent = 2;
+}
+
+message SchedulePolicy {
+  // Cron expression.
+  string cron = 1;
+
+  int32 replicas = 2;
+}
+
+// Webhook policy (DESIGN_v3 §3.5): POST {fleet, status} to the endpoint,
+// receive {replicas}. Calls are protected by timeout + circuit breaker; on
+// failure the current replica count is kept.
+message WebhookPolicy {
+  string url = 1;
+
+  // Static headers attached to every request (e.g. a shared-secret
+  // Authorization header). IAM SigV4 is applied by infrastructure when the
+  // endpoint requires it.
+  map<string, string> headers = 2;
+}
+
+// FleetService manages Fleets. Errors follow DESIGN_v2 §5.2:
+// version conflict → ABORTED, scaling an autoscaled fleet or an invalid
+// state transition → FAILED_PRECONDITION.
+service FleetService {
+  rpc CreateFleet(CreateFleetRequest) returns (Fleet);
+
+  rpc GetFleet(GetFleetRequest) returns (Fleet);
+
+  rpc ListFleets(ListFleetsRequest) returns (ListFleetsResponse);
+
+  // UpdateFleet replaces the spec. "version" is required (optimistic lock).
+  rpc UpdateFleet(UpdateFleetRequest) returns (Fleet);
+
+  rpc DeleteFleet(DeleteFleetRequest) returns (google.protobuf.Empty);
+
+  // ScaleFleet sets replicas directly. FAILED_PRECONDITION while
+  // autoscaling is enabled (change min/max instead).
+  rpc ScaleFleet(ScaleFleetRequest) returns (Fleet);
+
+  // ApplyFleet is the declarative upsert used by arenactl (DESIGN_v2 §5.4.4).
+  // Identified by (namespace, name); creates when absent, replaces spec when
+  // present. No version required — the server performs read-modify-write with
+  // internal retries. dry_run=true writes nothing and returns the normalized
+  // spec plus a diff against the current state.
+  rpc ApplyFleet(ApplyFleetRequest) returns (ApplyFleetResponse);
+}
+
+message CreateFleetRequest {
+  string namespace = 1;
+  string name = 2;
+  map<string, string> labels = 3;
+  FleetSpec spec = 4;
+}
+
+message GetFleetRequest {
+  string namespace = 1;
+  string name = 2;
+}
+
+message ListFleetsRequest {
+  string namespace = 1;
+
+  // Page size (default 100, max 1000).
+  int32 page_size = 2;
+
+  string page_token = 3;
+}
+
+message ListFleetsResponse {
+  repeated Fleet fleets = 1;
+  string next_page_token = 2;
+}
+
+message UpdateFleetRequest {
+  string namespace = 1;
+  string name = 2;
+  map<string, string> labels = 3;
+  FleetSpec spec = 4;
+
+  // Required. Mismatch with the stored version → ABORTED.
+  int64 version = 5;
+}
+
+message DeleteFleetRequest {
+  string namespace = 1;
+  string name = 2;
+}
+
+message ScaleFleetRequest {
+  string namespace = 1;
+  string name = 2;
+
+  // Desired replicas (0-10000).
+  int32 replicas = 3;
+}
+
+message ApplyFleetRequest {
+  string namespace = 1;
+  string name = 2;
+
+  // Manifest metadata.labels, including the arenactl management marker.
+  map<string, string> labels = 3;
+
+  // Full desired spec. Replaces spec.* wholesale except replicas
+  // (ownership rules in FleetSpec.replicas).
+  FleetSpec spec = 4;
+
+  // When true, validate + normalize + diff without writing.
+  bool dry_run = 5;
+}
+
+message ApplyFleetResponse {
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+    ACTION_CREATED = 1;
+    ACTION_UPDATED = 2;
+    ACTION_UNCHANGED = 3;
+  }
+
+  // What was (or, for dry_run, would be) done.
+  Action action = 1;
+
+  // Resulting Fleet. For dry_run this is the projected result.
+  Fleet fleet = 2;
+
+  // Server-normalized spec (defaults filled in). Clients diff against this
+  // instead of re-implementing normalization (DESIGN_v2 §5.4.3).
+  FleetSpec normalized_spec = 3;
+
+  // Human-readable structured diff between current and desired state.
+  // Empty when action is ACTION_UNCHANGED.
+  string diff = 4;
+}

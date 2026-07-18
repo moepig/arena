@@ -1,0 +1,25 @@
+# buf module config. api/proto is the module root; packages follow the
+# directory layout (arena/v1, arena/gateway/v1).
+version: v2
+modules:
+  - path: api/proto
+lint:
+  use:
+    - STANDARD
+  ignore:
+    # Vendored Agones protos keep Agones' own package/naming conventions
+    # for wire compatibility (DESIGN_v3 §6.1).
+    - api/proto/agones
+  except:
+    # The Agones-compatible SDK surface (sdk.proto) uses google.protobuf.Empty
+    # and shared messages, and resource RPCs return the resource directly
+    # (e.g. CreateFleet → Fleet, DESIGN_v2 §5.1), so the standard
+    # request/response naming rules do not apply.
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    # "SDK" (Agones compatibility) and "SDKGateway" (DESIGN_v2 §4.3) are
+    # deliberate service names without the Service suffix.
+    - SERVICE_SUFFIX
+# breaking is intentionally not enforced yet: there are no v1 consumers
+# (plan_v1_to_v2_migration.md §2.0). Enable FILE-level checks once v2 ships.

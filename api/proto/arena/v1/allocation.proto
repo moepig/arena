@@ -1,0 +1,177 @@
+syntax = "proto3";
+
+package arena.v1;
+
+import "arena/v1/gameserver.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/moepig/arena/gen/arena/v1;arenav1";
+
+// AllocationService hands Ready GameServers to callers (matchmakers).
+// The hot path is lock-free: Redis ZPOPMIN + DynamoDB conditional commit
+// (DESIGN_v2 §4.2.1).
+service AllocationService {
+  // Allocate claims a Ready GameServer.
+  // idempotency_key is required; retries with the same key return the same
+  // Allocation. No Ready inventory → RESOURCE_EXHAUSTED (client backs off
+  // and retries; the idempotency key makes retries safe).
+  rpc Allocate(AllocateRequest) returns (AllocateResponse);
+
+  // Release ends an allocation (server returns to Ready under the reuse
+  // policy, or is drained).
+  rpc Release(ReleaseRequest) returns (google.protobuf.Empty);
+
+  // GetAllocation retrieves allocation details.
+  rpc GetAllocation(GetAllocationRequest) returns (Allocation);
+}
+
+message AllocateRequest {
+  // Required. allocation_id is derived from this key (UUIDv5), so resends
+  // converge on the same record.
+  string idempotency_key = 1;
+
+  // Namespace to allocate from.
+  string namespace = 2;
+
+  // Fleet name to allocate from. Optional when fleet_selector is set.
+  string fleet_name = 3;
+
+  // Metadata to attach to the allocation (e.g. sessionId).
+  map<string, string> metadata = 4;
+
+  // Optional ordered selector fallback chain (Agones parity — DESIGN_v3
+  // §4.1): selectors are tried first to last, and the first one with a
+  // matching Ready server wins. A single selector on the wire decodes as a
+  // one-element chain. Requests with selectors take the slower fleet-index
+  // query path (DESIGN_v2 §4.2.2).
+  repeated Selectors selectors = 5;
+
+  // Removed: int32 priority (never implemented; superseded by the
+  // Counter/List priorities design — DESIGN_v3 §5.2).
+  reserved 6;
+
+  // Labels/annotations applied to the GameServer itself in the same
+  // transaction that commits the allocation, and pushed to the game via
+  // WatchGameServer (DESIGN_v3 §4.2). This is the matchmaker → game server
+  // information channel; `metadata` above only annotates the Allocation
+  // record.
+  GameServerMetadata game_server_metadata = 7;
+
+  // Cross-fleet allocation (DESIGN_v3 §4.3): when fleet_name is empty,
+  // target fleets are resolved by these fleet labels (max 8 fleets, tried
+  // in creation order; resolution is cached ~60s). Exactly one of
+  // fleet_name / fleet_selector must be set.
+  map<string, string> fleet_selector = 8;
+
+  // Counter capacity filters (DESIGN_v3 §5.2): only servers whose named
+  // Counter satisfies every filter are candidates.
+  repeated CounterFilter counter_filters = 9;
+
+  // Candidate ordering by Counter available capacity (DESIGN_v3 §5.2),
+  // evaluated before the default oldest-Ready-first order.
+  repeated Priority priorities = 10;
+
+  // High-density reallocation (DESIGN_v3 §5.3): also consider Allocated
+  // servers with matching Counter capacity; a winning Allocated server
+  // stays Allocated and gains an additional Allocation record. Requires at
+  // least one counter_filter.
+  bool allow_allocated = 11;
+}
+
+// CounterFilter narrows candidates by a named Counter (DESIGN_v3 §5.2).
+// available = capacity - count.
+message CounterFilter {
+  string name = 1;
+
+  // Minimum available capacity. Defaults to 1 (a filter that admits full
+  // servers is useless).
+  int64 min_available = 2;
+
+  // Maximum available capacity; 0 = unbounded.
+  int64 max_available = 3;
+}
+
+// Priority orders candidates by Counter available capacity.
+message Priority {
+  string counter = 1;
+
+  enum Order {
+    ORDER_UNSPECIFIED = 0;
+    // Least available first (pack sessions onto fewer servers).
+    ORDER_ASCENDING = 1;
+    // Most available first (spread sessions).
+    ORDER_DESCENDING = 2;
+  }
+  Order order = 2;
+}
+
+// GameServerMetadata is patched onto the allocated GameServer.
+message GameServerMetadata {
+  map<string, string> labels = 1;
+  map<string, string> annotations = 2;
+}
+
+// Selectors narrow candidate GameServers. All specified parts must match
+// (AND); `preferred` never disqualifies, it only orders candidates.
+message Selectors {
+  // Label selector (exact match on every entry).
+  map<string, string> match_labels = 1;
+
+  // Field selector. Supported keys: "id", "spec_hash".
+  map<string, string> match_fields = 2;
+
+  // Required requirements (all must match).
+  repeated Requirement required = 3;
+
+  // Preferred requirements: candidates matching more of these are tried
+  // first (ties broken oldest-Ready-first).
+  repeated Requirement preferred = 4;
+}
+
+message Requirement {
+  enum Operator {
+    OPERATOR_UNSPECIFIED = 0;
+    OPERATOR_EQUALS = 1;
+    OPERATOR_NOT_EQUALS = 2;
+    OPERATOR_IN = 3;
+    OPERATOR_NOT_IN = 4;
+    OPERATOR_EXISTS = 5;
+    OPERATOR_NOT_EXISTS = 6;
+  }
+
+  string key = 1;
+  Operator operator = 2;
+  repeated string values = 3;
+}
+
+message AllocateResponse {
+  // Deterministically derived from idempotency_key.
+  string allocation_id = 1;
+
+  // The allocated GameServer, including address and ports for direct
+  // client connection (no load balancer — DESIGN_v2 §6.1).
+  GameServer game_server = 2;
+
+  // Allocation timestamp (epoch seconds).
+  int64 allocated_at = 3;
+}
+
+message ReleaseRequest {
+  string allocation_id = 1;
+}
+
+message GetAllocationRequest {
+  string allocation_id = 1;
+}
+
+message Allocation {
+  string allocation_id = 1;
+  string gameserver_id = 2;
+  string fleet_id = 3;
+  string session_id = 4;
+  map<string, string> metadata = 5;
+
+  // Epoch seconds; released_at is 0 while active.
+  int64 allocated_at = 6;
+  int64 released_at = 7;
+}

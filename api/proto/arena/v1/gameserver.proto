@@ -1,0 +1,145 @@
+syntax = "proto3";
+
+package arena.v1;
+
+option go_package = "github.com/moepig/arena/gen/arena/v1;arenav1";
+
+// GameServer is a single game server instance backed by an ECS Task.
+// It is a runtime resource created by the Fleet reconciler and is not
+// managed declaratively (DESIGN_v2 §5.4.1).
+//
+// This is the single shared definition; sdk.proto and allocation.proto
+// import it instead of redefining their own copies.
+message GameServer {
+  // State follows the v2 state machine (DESIGN_v2 §4.1.1) extended with
+  // Reserved (DESIGN_v3 §2.1). Every transition is enforced with a DynamoDB
+  // conditional write.
+  enum State {
+    STATE_UNSPECIFIED = 0;
+    STATE_SCHEDULED = 1;
+    STATE_STARTING = 2;
+    STATE_READY = 3;
+    STATE_ALLOCATED = 4;
+    STATE_DRAINING = 5;
+    STATE_UNHEALTHY = 6;
+    STATE_TERMINATED = 7;
+    // Reserved: held out of the ready pool (not allocatable, protected from
+    // scale-down) until reserved_until passes or the SDK moves it on.
+    STATE_RESERVED = 8;
+  }
+
+  // Unique identifier (server-assigned UUID).
+  string id = 1;
+
+  // Name of the GameServer.
+  string name = 2;
+
+  // Namespace.
+  string namespace = 3;
+
+  // Owning Fleet ID.
+  string fleet_id = 4;
+
+  // Current state.
+  State state = 5;
+
+  // Publicly reachable address of the Task. Named "address" rather than
+  // "ip_address" because in EC2 mode it is not necessarily the ENI IP.
+  string address = 6;
+
+  // Port configuration.
+  repeated Port ports = 7;
+
+  // Metadata.
+  map<string, string> labels = 8;
+  map<string, string> annotations = 9;
+
+  // Fleet spec_hash the server was launched with (rolling-update generation).
+  string spec_hash = 10;
+
+  // Timestamps (epoch seconds).
+  int64 created_at = 11;
+  int64 ready_at = 12;
+  int64 allocated_at = 13;
+
+  // When a Reserved server automatically returns to Ready (epoch seconds).
+  // 0 while Reserved means "until the SDK says otherwise" (DESIGN_v3 §2.1).
+  int64 reserved_until = 14;
+
+  // Backing ECS task (admin/debugging: arenactl logs resolves the
+  // CloudWatch log stream from the task ID — DESIGN_v3 §6.7).
+  string task_arn = 15;
+}
+
+// Port is a single exposed port of a GameServer.
+message Port {
+  enum Protocol {
+    PROTOCOL_UNSPECIFIED = 0;
+    PROTOCOL_UDP = 1;
+    PROTOCOL_TCP = 2;
+    // TCPUDP exposes the same port number over both protocols (Agones
+    // parity — DESIGN_v3 §6.2). Expanded into two port mappings at task
+    // definition time; GameServer.ports reports the expanded pair.
+    PROTOCOL_TCPUDP = 3;
+  }
+
+  // Name of the port (e.g. "game").
+  string name = 1;
+
+  // Port number (1-65535).
+  int32 port = 2;
+
+  // Protocol.
+  Protocol protocol = 3;
+}
+
+// GameServerService provides access to GameServers. Reads are open to every
+// role; DeleteGameServer requires fleet-editor or admin.
+service GameServerService {
+  // GetGameServer retrieves a single GameServer by ID.
+  rpc GetGameServer(GetGameServerRequest) returns (GameServer);
+
+  // ListGameServers lists GameServers with page_token pagination.
+  rpc ListGameServers(ListGameServersRequest) returns (ListGameServersResponse);
+
+  // DeleteGameServer removes one server (`kubectl delete gameserver`
+  // parity — DESIGN_v3 §2.5): Ready/Reserved/Allocated go Draining,
+  // Scheduled/Starting go Unhealthy; the controller stops the task and the
+  // fleet reconciler replaces it. Idempotent — already-terminating servers
+  // are a no-op.
+  rpc DeleteGameServer(DeleteGameServerRequest) returns (GameServer);
+}
+
+message GetGameServerRequest {
+  // GameServer ID.
+  string id = 1;
+}
+
+message DeleteGameServerRequest {
+  // GameServer ID.
+  string id = 1;
+}
+
+message ListGameServersRequest {
+  // Namespace to list from.
+  string namespace = 1;
+
+  // Optional: restrict to a fleet (uses the fleet-index GSI).
+  string fleet_name = 2;
+
+  // Optional: filter by state.
+  GameServer.State state = 3;
+
+  // Page size (default 100, max 1000).
+  int32 page_size = 4;
+
+  // Opaque pagination token from a previous response.
+  string page_token = 5;
+}
+
+message ListGameServersResponse {
+  repeated GameServer game_servers = 1;
+
+  // Empty when there are no further pages.
+  string next_page_token = 2;
+}

@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package arena.v1;
+
+option go_package = "github.com/moepig/arena/gen/arena/v1;arenav1";
+
+// EventService exposes object events (the `kubectl describe` Events
+// equivalent — DESIGN_v3 §6.6). Events are written by arena-controller and
+// arena-api at state transitions, allocations, and errors, and expire after
+// 7 days (DynamoDB TTL).
+service EventService {
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+}
+
+message Event {
+  // "fleet" | "gameserver".
+  string resource_type = 1;
+
+  // Resource ID (fleet_id / gameserver_id).
+  string resource_id = 2;
+
+  // Epoch seconds.
+  int64 timestamp = 3;
+
+  // "Normal" | "Warning".
+  string type = 4;
+
+  // Machine-readable reason, e.g. "Ready", "Unhealthy", "ScaleUp".
+  string reason = 5;
+
+  // Human-readable detail.
+  string message = 6;
+}
+
+message ListEventsRequest {
+  // Required. "fleet" | "gameserver".
+  string resource_type = 1;
+
+  // Required.
+  string resource_id = 2;
+
+  // Newest-first limit (default 50, max 200).
+  int32 limit = 3;
+}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+}

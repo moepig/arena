@@ -1,0 +1,53 @@
+# Local AWS-equivalent environment for RUNNING arena on this machine.
+# (The integration tests do not use this file — they start their own
+# containers via testcontainers; see test/integration.)
+#
+#   docker compose up -d --wait
+#
+#   # create the tables once (any AWS SDK tool works), then e.g.:
+#   AWS_ENDPOINT_URL_DYNAMODB=http://localhost:18000 \
+#   AWS_ENDPOINT_URL_ECS=http://localhost:14566 \
+#   AWS_ENDPOINT_URL_SQS=http://localhost:14566 \
+#   AWS_ENDPOINT_URL_STS=http://localhost:14566 \
+#   AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_REGION=us-east-1 \
+#   go run ./cmd/arena-api -redis localhost:16379 -table-prefix arena-local-
+#
+# Services:
+#   dynamodb  DynamoDB Local — source of truth (conditional writes,
+#             transactions and GSIs behave like real DynamoDB)
+#   valkey    Valkey (Redis wire) — ready pool / heartbeats / pub-sub
+#   floci     floci (https://floci.io) — SQS, ECS, STS, EC2 on one endpoint.
+#             Its ECS emulation runs REAL containers, hence the docker
+#             socket mount and root user.
+#
+# Host ports are non-default to avoid colliding with local Redis/etc.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.2
+    command: ["-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"]
+    ports:
+      - "18000:8000"
+    healthcheck:
+      # DynamoDB Local answers 400 to an empty request; any answer means up.
+      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8000 || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  valkey:
+    image: valkey/valkey:8.1
+    ports:
+      - "16379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  floci:
+    image: floci/floci:latest
+    user: root
+    ports:
+      - "14566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

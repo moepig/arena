@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package arena.v1;
+
+import "arena/v1/gameserver.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/moepig/arena/gen/arena/v1;arenav1";
+
+// SDK is the Agones-compatible API the sidecar serves to the game server
+// container over localhost gRPC (:9357).
+//
+// This is the public surface for game developers; it is intentionally
+// decoupled from the sidecar ⇄ arena-api transport, which is defined in
+// arena/gateway/v1/sdk_gateway.proto. The sidecar has no direct access to
+// DynamoDB, Redis, or the ECS API.
+service SDK {
+  // Ready marks the GameServer as Ready to accept allocations. From
+  // Starting this is the initial Ready; from Allocated it returns the
+  // server to the pool for reuse (DESIGN_v3 §2.3); from Reserved it ends
+  // the reservation early.
+  rpc Ready(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // Health indicates the game server is healthy. Forwarded upstream as a
+  // heartbeat; missing heartbeats mark the server Unhealthy.
+  rpc Health(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // Shutdown signals the game server is shutting down.
+  rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // GetGameServer retrieves the current GameServer object.
+  rpc GetGameServer(google.protobuf.Empty) returns (GameServer);
+
+  // SetLabel sets a metadata label on the GameServer.
+  rpc SetLabel(KeyValue) returns (google.protobuf.Empty);
+
+  // SetAnnotation sets a metadata annotation on the GameServer.
+  rpc SetAnnotation(KeyValue) returns (google.protobuf.Empty);
+
+  // Reserve marks the GameServer as Reserved for a duration: out of the
+  // ready pool and protected from scale-down. A zero duration reserves
+  // until Ready/Allocate/Shutdown is called (DESIGN_v3 §2.1).
+  rpc Reserve(google.protobuf.Duration) returns (google.protobuf.Empty);
+
+  // WatchGameServer streams GameServer updates to the caller
+  // (including allocation pushes).
+  rpc WatchGameServer(google.protobuf.Empty) returns (stream GameServer);
+
+  // Allocate self-allocates the GameServer from Ready/Reserved — the game
+  // decides on its own to accept players, without a matchmaker
+  // (DESIGN_v3 §2.2).
+  rpc Allocate(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+message KeyValue {
+  string key = 1;
+  string value = 2;
+}

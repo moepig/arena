@@ -1,0 +1,16 @@
+version: v2
+clean: true
+plugins:
+  - local: protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  - local: protoc-gen-connect-go
+    out: gen
+    opt: paths=source_relative
+  # OpenAPI is a build artifact, never hand-written (DESIGN_v2 §5.1).
+  # CI freshness check: buf generate && git diff --exit-code gen/
+  - local: protoc-gen-connect-openapi
+    out: gen/openapi
+    strategy: all
+    opt:
+      - path=arena.v1.yaml

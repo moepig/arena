@@ -1,0 +1,4109 @@
+openapi: 3.1.0
+info: {}
+paths:
+  /agones.dev.sdk.SDK/Allocate:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: Allocate
+      description: Call to self Allocation the GameServer.
+      operationId: agones.dev.sdk.SDK.Allocate
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.Empty'
+  /agones.dev.sdk.SDK/GetGameServer:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: GetGameServer
+      description: Retrieve the current GameServer data.
+      operationId: agones.dev.sdk.SDK.GetGameServer
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.GameServer'
+  /agones.dev.sdk.SDK/Health: {}
+  /agones.dev.sdk.SDK/Ready:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: Ready
+      description: Call when the GameServer is ready.
+      operationId: agones.dev.sdk.SDK.Ready
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.Empty'
+  /agones.dev.sdk.SDK/Reserve:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: Reserve
+      description: Marks the GameServer as the Reserved state for Duration.
+      operationId: agones.dev.sdk.SDK.Reserve
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.Duration'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.Empty'
+  /agones.dev.sdk.SDK/SetAnnotation:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: SetAnnotation
+      description: Apply a Annotation to the backing GameServer metadata.
+      operationId: agones.dev.sdk.SDK.SetAnnotation
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.KeyValue'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.Empty'
+  /agones.dev.sdk.SDK/SetLabel:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: SetLabel
+      description: Apply a Label to the backing GameServer metadata.
+      operationId: agones.dev.sdk.SDK.SetLabel
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.KeyValue'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.Empty'
+  /agones.dev.sdk.SDK/Shutdown:
+    post:
+      tags:
+        - agones.dev.sdk.SDK
+      summary: Shutdown
+      description: Call when the GameServer is shutting down.
+      operationId: agones.dev.sdk.SDK.Shutdown
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.Empty'
+  /agones.dev.sdk.SDK/WatchGameServer: {}
+  /agones.dev.sdk.beta.SDK/AddListValue:
+    post:
+      tags:
+        - agones.dev.sdk.beta.SDK
+      summary: AddListValue
+      description: |-
+        Adds a value to a List and returns the updated List. Returns NOT_FOUND
+         if the List does not exist. Returns ALREADY_EXISTS if the value is
+         already in the List. Returns OUT_OF_RANGE if the List is at capacity.
+      operationId: agones.dev.sdk.beta.SDK.AddListValue
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.beta.AddListValueRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.beta.List'
+  /agones.dev.sdk.beta.SDK/GetCounter:
+    post:
+      tags:
+        - agones.dev.sdk.beta.SDK
+      summary: GetCounter
+      description: Gets a Counter. Returns NOT_FOUND if the Counter does not exist.
+      operationId: agones.dev.sdk.beta.SDK.GetCounter
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.beta.GetCounterRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.beta.Counter'
+  /agones.dev.sdk.beta.SDK/GetList:
+    post:
+      tags:
+        - agones.dev.sdk.beta.SDK
+      summary: GetList
+      description: Gets a List. Returns NOT_FOUND if the List does not exist.
+      operationId: agones.dev.sdk.beta.SDK.GetList
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.beta.GetListRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.beta.List'
+  /agones.dev.sdk.beta.SDK/RemoveListValue:
+    post:
+      tags:
+        - agones.dev.sdk.beta.SDK
+      summary: RemoveListValue
+      description: |-
+        Removes a value from a List and returns the updated List. Returns
+         NOT_FOUND if the List or the value does not exist.
+      operationId: agones.dev.sdk.beta.SDK.RemoveListValue
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.beta.RemoveListValueRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.beta.List'
+  /agones.dev.sdk.beta.SDK/UpdateCounter:
+    post:
+      tags:
+        - agones.dev.sdk.beta.SDK
+      summary: UpdateCounter
+      description: |-
+        UpdateCounter returns the updated Counter. Returns NOT_FOUND if the
+         Counter does not exist. Returns OUT_OF_RANGE if the Count is out of
+         range [0, Capacity].
+      operationId: agones.dev.sdk.beta.SDK.UpdateCounter
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.beta.UpdateCounterRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.beta.Counter'
+  /agones.dev.sdk.beta.SDK/UpdateList:
+    post:
+      tags:
+        - agones.dev.sdk.beta.SDK
+      summary: UpdateList
+      description: |-
+        UpdateList returns the updated List. Returns NOT_FOUND if the List
+         does not exist. THIS WILL OVERWRITE ALL EXISTING LIST.VALUES with the
+         new list values.
+      operationId: agones.dev.sdk.beta.SDK.UpdateList
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/agones.dev.sdk.beta.UpdateListRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/agones.dev.sdk.beta.List'
+  /arena.gateway.v1.SDKGateway/Session: {}
+  /arena.v1.AllocationService/Allocate:
+    post:
+      tags:
+        - arena.v1.AllocationService
+      summary: Allocate
+      description: |-
+        Allocate claims a Ready GameServer.
+         idempotency_key is required; retries with the same key return the same
+         Allocation. No Ready inventory → RESOURCE_EXHAUSTED (client backs off
+         and retries; the idempotency key makes retries safe).
+      operationId: arena.v1.AllocationService.Allocate
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.AllocateRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.AllocateResponse'
+  /arena.v1.AllocationService/GetAllocation:
+    post:
+      tags:
+        - arena.v1.AllocationService
+      summary: GetAllocation
+      description: GetAllocation retrieves allocation details.
+      operationId: arena.v1.AllocationService.GetAllocation
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.GetAllocationRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.Allocation'
+  /arena.v1.AllocationService/Release:
+    post:
+      tags:
+        - arena.v1.AllocationService
+      summary: Release
+      description: |-
+        Release ends an allocation (server returns to Ready under the reuse
+         policy, or is drained).
+      operationId: arena.v1.AllocationService.Release
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.ReleaseRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.EventService/ListEvents:
+    post:
+      tags:
+        - arena.v1.EventService
+      summary: ListEvents
+      operationId: arena.v1.EventService.ListEvents
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.ListEventsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.ListEventsResponse'
+  /arena.v1.FleetService/ApplyFleet:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: ApplyFleet
+      description: |-
+        ApplyFleet is the declarative upsert used by arenactl (DESIGN_v2 §5.4.4).
+         Identified by (namespace, name); creates when absent, replaces spec when
+         present. No version required — the server performs read-modify-write with
+         internal retries. dry_run=true writes nothing and returns the normalized
+         spec plus a diff against the current state.
+      operationId: arena.v1.FleetService.ApplyFleet
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.ApplyFleetRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.ApplyFleetResponse'
+  /arena.v1.FleetService/CreateFleet:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: CreateFleet
+      operationId: arena.v1.FleetService.CreateFleet
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.CreateFleetRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.Fleet'
+  /arena.v1.FleetService/DeleteFleet:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: DeleteFleet
+      operationId: arena.v1.FleetService.DeleteFleet
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.DeleteFleetRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.FleetService/GetFleet:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: GetFleet
+      operationId: arena.v1.FleetService.GetFleet
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.GetFleetRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.Fleet'
+  /arena.v1.FleetService/ListFleets:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: ListFleets
+      operationId: arena.v1.FleetService.ListFleets
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.ListFleetsRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.ListFleetsResponse'
+  /arena.v1.FleetService/ScaleFleet:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: ScaleFleet
+      description: |-
+        ScaleFleet sets replicas directly. FAILED_PRECONDITION while
+         autoscaling is enabled (change min/max instead).
+      operationId: arena.v1.FleetService.ScaleFleet
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.ScaleFleetRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.Fleet'
+  /arena.v1.FleetService/UpdateFleet:
+    post:
+      tags:
+        - arena.v1.FleetService
+      summary: UpdateFleet
+      description: UpdateFleet replaces the spec. "version" is required (optimistic lock).
+      operationId: arena.v1.FleetService.UpdateFleet
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.UpdateFleetRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.Fleet'
+  /arena.v1.GameServerService/DeleteGameServer:
+    post:
+      tags:
+        - arena.v1.GameServerService
+      summary: DeleteGameServer
+      description: |-
+        DeleteGameServer removes one server (`kubectl delete gameserver`
+         parity — DESIGN_v3 §2.5): Ready/Reserved/Allocated go Draining,
+         Scheduled/Starting go Unhealthy; the controller stops the task and the
+         fleet reconciler replaces it. Idempotent — already-terminating servers
+         are a no-op.
+      operationId: arena.v1.GameServerService.DeleteGameServer
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.DeleteGameServerRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.GameServer'
+  /arena.v1.GameServerService/GetGameServer:
+    post:
+      tags:
+        - arena.v1.GameServerService
+      summary: GetGameServer
+      description: GetGameServer retrieves a single GameServer by ID.
+      operationId: arena.v1.GameServerService.GetGameServer
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.GetGameServerRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.GameServer'
+  /arena.v1.GameServerService/ListGameServers:
+    post:
+      tags:
+        - arena.v1.GameServerService
+      summary: ListGameServers
+      description: ListGameServers lists GameServers with page_token pagination.
+      operationId: arena.v1.GameServerService.ListGameServers
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.ListGameServersRequest'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.ListGameServersResponse'
+  /arena.v1.SDK/Allocate:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: Allocate
+      description: |-
+        Allocate self-allocates the GameServer from Ready/Reserved — the game
+         decides on its own to accept players, without a matchmaker
+         (DESIGN_v3 §2.2).
+      operationId: arena.v1.SDK.Allocate
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/google.protobuf.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/GetGameServer:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: GetGameServer
+      description: GetGameServer retrieves the current GameServer object.
+      operationId: arena.v1.SDK.GetGameServer
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/google.protobuf.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/arena.v1.GameServer'
+  /arena.v1.SDK/Health:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: Health
+      description: |-
+        Health indicates the game server is healthy. Forwarded upstream as a
+         heartbeat; missing heartbeats mark the server Unhealthy.
+      operationId: arena.v1.SDK.Health
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/google.protobuf.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/Ready:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: Ready
+      description: |-
+        Ready marks the GameServer as Ready to accept allocations. From
+         Starting this is the initial Ready; from Allocated it returns the
+         server to the pool for reuse (DESIGN_v3 §2.3); from Reserved it ends
+         the reservation early.
+      operationId: arena.v1.SDK.Ready
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/google.protobuf.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/Reserve:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: Reserve
+      description: |-
+        Reserve marks the GameServer as Reserved for a duration: out of the
+         ready pool and protected from scale-down. A zero duration reserves
+         until Ready/Allocate/Shutdown is called (DESIGN_v3 §2.1).
+      operationId: arena.v1.SDK.Reserve
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/google.protobuf.Duration'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/SetAnnotation:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: SetAnnotation
+      description: SetAnnotation sets a metadata annotation on the GameServer.
+      operationId: arena.v1.SDK.SetAnnotation
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.KeyValue'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/SetLabel:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: SetLabel
+      description: SetLabel sets a metadata label on the GameServer.
+      operationId: arena.v1.SDK.SetLabel
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/arena.v1.KeyValue'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/Shutdown:
+    post:
+      tags:
+        - arena.v1.SDK
+      summary: Shutdown
+      description: Shutdown signals the game server is shutting down.
+      operationId: arena.v1.SDK.Shutdown
+      parameters:
+        - name: Connect-Protocol-Version
+          in: header
+          required: true
+          schema:
+            $ref: '#/components/schemas/connect-protocol-version'
+        - name: Connect-Timeout-Ms
+          in: header
+          schema:
+            $ref: '#/components/schemas/connect-timeout-header'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/google.protobuf.Empty'
+        required: true
+      responses:
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/connect.error'
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/google.protobuf.Empty'
+  /arena.v1.SDK/WatchGameServer: {}
+components:
+  schemas:
+    agones.dev.sdk.Duration:
+      type: object
+      properties:
+        seconds:
+          type:
+            - integer
+            - string
+          title: seconds
+          format: int64
+      title: Duration
+      additionalProperties: false
+      description: time duration, in seconds.
+    agones.dev.sdk.Empty:
+      type: object
+      title: Empty
+      additionalProperties: false
+      description: I am Empty.
+    agones.dev.sdk.GameServer:
+      type: object
+      properties:
+        objectMeta:
+          title: object_meta
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.ObjectMeta'
+        spec:
+          title: spec
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.Spec'
+        status:
+          title: status
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status'
+      title: GameServer
+      additionalProperties: false
+      description: |-
+        A GameServer Custom Resource Definition object. We will only export those
+         resources that make the most sense. Can always expand to more as needed.
+    agones.dev.sdk.GameServer.ObjectMeta:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        namespace:
+          type: string
+          title: namespace
+        uid:
+          type: string
+          title: uid
+        resourceVersion:
+          type: string
+          title: resource_version
+        generation:
+          type:
+            - integer
+            - string
+          title: generation
+          format: int64
+        creationTimestamp:
+          type:
+            - integer
+            - string
+          title: creation_timestamp
+          format: int64
+          description: 'timestamp is in Epoch format, unit: seconds.'
+        deletionTimestamp:
+          type:
+            - integer
+            - string
+          title: deletion_timestamp
+          format: int64
+          description: 'optional deletion timestamp in Epoch format, unit: seconds.'
+        annotations:
+          type: object
+          title: annotations
+          additionalProperties:
+            type: string
+            title: value
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+      title: ObjectMeta
+      additionalProperties: false
+      description: representation of the K8s ObjectMeta resource.
+    agones.dev.sdk.GameServer.ObjectMeta.AnnotationsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: AnnotationsEntry
+      additionalProperties: false
+    agones.dev.sdk.GameServer.ObjectMeta.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Spec:
+      type: object
+      properties:
+        health:
+          title: health
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.Spec.Health'
+      title: Spec
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Spec.Health:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+          title: disabled
+        periodSeconds:
+          type: integer
+          title: period_seconds
+          format: int32
+        failureThreshold:
+          type: integer
+          title: failure_threshold
+          format: int32
+        initialDelaySeconds:
+          type: integer
+          title: initial_delay_seconds
+          format: int32
+      title: Health
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Status:
+      type: object
+      properties:
+        state:
+          type: string
+          title: state
+        address:
+          type: string
+          title: address
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.Port'
+          title: ports
+        players:
+          title: players
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.PlayerStatus'
+        counters:
+          type: object
+          title: counters
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.CounterStatus'
+        lists:
+          type: object
+          title: lists
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.ListStatus'
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.Address'
+          title: addresses
+      title: Status
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Status.Address:
+      type: object
+      properties:
+        type:
+          type: string
+          title: type
+        address:
+          type: string
+          title: address
+      title: Address
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Status.CounterStatus:
+      type: object
+      properties:
+        count:
+          type:
+            - integer
+            - string
+          title: count
+          format: int64
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+      title: CounterStatus
+      additionalProperties: false
+      description: '[Stage:Beta] CounterStatus of a Counter.'
+    agones.dev.sdk.GameServer.Status.CountersEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.CounterStatus'
+      title: CountersEntry
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Status.ListStatus:
+      type: object
+      properties:
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+        values:
+          type: array
+          items:
+            type: string
+          title: values
+      title: ListStatus
+      additionalProperties: false
+      description: '[Stage:Beta] ListStatus of a List.'
+    agones.dev.sdk.GameServer.Status.ListsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/agones.dev.sdk.GameServer.Status.ListStatus'
+      title: ListsEntry
+      additionalProperties: false
+    agones.dev.sdk.GameServer.Status.PlayerStatus:
+      type: object
+      properties:
+        count:
+          type:
+            - integer
+            - string
+          title: count
+          format: int64
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+        ids:
+          type: array
+          items:
+            type: string
+          title: ids
+      title: PlayerStatus
+      additionalProperties: false
+      description: |-
+        [Stage:Alpha] PlayerStatus — not implemented by arena (Agones
+         recommends Counters/Lists); present for wire shape only.
+    agones.dev.sdk.GameServer.Status.Port:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        port:
+          type: integer
+          title: port
+          format: int32
+      title: Port
+      additionalProperties: false
+    agones.dev.sdk.KeyValue:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: KeyValue
+      additionalProperties: false
+      description: Key, Value entry.
+    agones.dev.sdk.beta.AddListValueRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the List to add a value to.
+        value:
+          type: string
+          title: value
+          description: The value to add to the List.
+      title: AddListValueRequest
+      additionalProperties: false
+    agones.dev.sdk.beta.Counter:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the Counter.
+        count:
+          type:
+            - integer
+            - string
+          title: count
+          format: int64
+          description: The current count of the Counter.
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+          description: The maximum capacity of the Counter.
+      title: Counter
+      additionalProperties: false
+      description: A representation of a Counter.
+    agones.dev.sdk.beta.CounterUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the Counter to update.
+        count:
+          type:
+            - integer
+            - string
+            - "null"
+          title: count
+          format: int64
+          description: The value to set the Counter Count.
+        capacity:
+          type:
+            - integer
+            - string
+            - "null"
+          title: capacity
+          format: int64
+          description: The value to set the Counter Capacity.
+        countDiff:
+          type:
+            - integer
+            - string
+          title: count_diff
+          format: int64
+          description: |-
+            countDiff tracks if a Counter Update Request is CountIncrement (positive
+             integer), CountDecrement (negative integer), or neither (zero).
+      title: CounterUpdateRequest
+      additionalProperties: false
+      description: A representation of a Counter Update Request.
+    agones.dev.sdk.beta.GetCounterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the Counter to get.
+      title: GetCounterRequest
+      additionalProperties: false
+    agones.dev.sdk.beta.GetListRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the List to get.
+      title: GetListRequest
+      additionalProperties: false
+    agones.dev.sdk.beta.List:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the List.
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+          description: The maximum capacity of the List.
+        values:
+          type: array
+          items:
+            type: string
+          title: values
+          description: The array of items in the List ["v1", "v2", …].
+      title: List
+      additionalProperties: false
+      description: A representation of a List.
+    agones.dev.sdk.beta.RemoveListValueRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: The name of the List to remove a value from.
+        value:
+          type: string
+          title: value
+          description: The value to remove from the List.
+      title: RemoveListValueRequest
+      additionalProperties: false
+    agones.dev.sdk.beta.UpdateCounterRequest:
+      type: object
+      properties:
+        counterUpdateRequest:
+          title: counter_update_request
+          description: The requested update to make to the Counter.
+          $ref: '#/components/schemas/agones.dev.sdk.beta.CounterUpdateRequest'
+      title: UpdateCounterRequest
+      additionalProperties: false
+    agones.dev.sdk.beta.UpdateListRequest:
+      type: object
+      properties:
+        list:
+          title: list
+          description: The List to update.
+          $ref: '#/components/schemas/agones.dev.sdk.beta.List'
+        updateMask:
+          title: update_mask
+          description: |-
+            Required. Mask (list) of fields to update. Fields are specified
+             relative to the List (e.g. `capacity`, `values`).
+          $ref: '#/components/schemas/google.protobuf.FieldMask'
+      title: UpdateListRequest
+      additionalProperties: false
+    arena.gateway.v1.Ack:
+      type: object
+      title: Ack
+      additionalProperties: false
+    arena.gateway.v1.CounterState:
+      type: object
+      properties:
+        count:
+          type:
+            - integer
+            - string
+          title: count
+          format: int64
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+      title: CounterState
+      additionalProperties: false
+    arena.gateway.v1.CountersSync:
+      type: object
+      properties:
+        counters:
+          type: object
+          title: counters
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/arena.gateway.v1.CounterState'
+        lists:
+          type: object
+          title: lists
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/arena.gateway.v1.ListState'
+      title: CountersSync
+      additionalProperties: false
+      description: |-
+        CountersSync carries the full Counter/List state of the game server
+         (DESIGN_v3 §5.1). The source of truth is the game process; the sidecar
+         sends the complete state on every change and re-sends it periodically
+         (30s) and on reconnect, so the Redis copy is rebuildable derived data.
+    arena.gateway.v1.CountersSync.CountersEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/arena.gateway.v1.CounterState'
+      title: CountersEntry
+      additionalProperties: false
+    arena.gateway.v1.CountersSync.ListsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/arena.gateway.v1.ListState'
+      title: ListsEntry
+      additionalProperties: false
+    arena.gateway.v1.GatewayMessage:
+      type: object
+      oneOf:
+        - type: object
+          properties:
+            ack:
+              title: ack
+              $ref: '#/components/schemas/arena.gateway.v1.Ack'
+          title: ack
+          required:
+            - ack
+        - type: object
+          properties:
+            state:
+              title: state
+              description: Push for WatchGameServer, including allocation notifications.
+              $ref: '#/components/schemas/arena.v1.GameServer'
+          title: state
+          required:
+            - state
+      title: GatewayMessage
+      additionalProperties: false
+    arena.gateway.v1.Heartbeat:
+      type: object
+      title: Heartbeat
+      additionalProperties: false
+      description: Heartbeat is written to Redis with a TTL only — never to DynamoDB.
+    arena.gateway.v1.ListState:
+      type: object
+      properties:
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+        values:
+          type: array
+          items:
+            type: string
+          title: values
+      title: ListState
+      additionalProperties: false
+    arena.gateway.v1.ReadyRequest:
+      type: object
+      title: ReadyRequest
+      additionalProperties: false
+      description: |-
+        ReadyRequest requests a transition to Ready. From Starting this is the
+         initial Ready; from Allocated it returns the server to the pool for reuse
+         (releasing its active allocations); from Reserved it ends the reservation
+         early (DESIGN_v3 §2.1, §2.3). The gateway commits the transition in
+         DynamoDB before adding the server to the Redis ready pool.
+    arena.gateway.v1.ReserveRequest:
+      type: object
+      properties:
+        seconds:
+          type:
+            - integer
+            - string
+          title: seconds
+          format: int64
+      title: ReserveRequest
+      additionalProperties: false
+      description: |-
+        ReserveRequest moves a Ready server to Reserved for `seconds` (0 = until
+         the SDK calls Ready/Allocate/Shutdown). Extending an existing reservation
+         is allowed (DESIGN_v3 §2.1).
+    arena.gateway.v1.SelfAllocateRequest:
+      type: object
+      title: SelfAllocateRequest
+      additionalProperties: false
+      description: |-
+        SelfAllocateRequest lets the game server allocate itself from
+         Ready/Reserved (DESIGN_v3 §2.2). The gateway synthesizes the Allocation
+         record with metadata "arena.dev/self-allocated": "true".
+    arena.gateway.v1.SetMetadataRequest:
+      type: object
+      properties:
+        kind:
+          title: kind
+          $ref: '#/components/schemas/arena.gateway.v1.SetMetadataRequest.Kind'
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: SetMetadataRequest
+      additionalProperties: false
+    arena.gateway.v1.SetMetadataRequest.Kind:
+      type: string
+      title: Kind
+      enum:
+        - KIND_UNSPECIFIED
+        - KIND_LABEL
+        - KIND_ANNOTATION
+    arena.gateway.v1.ShutdownRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          title: reason
+          description: Optional cause for events/logs, e.g. "spot-interruption".
+      title: ShutdownRequest
+      additionalProperties: false
+      description: |-
+        ShutdownRequest signals graceful shutdown of the game server. Also used
+         for infrastructure-initiated drains (Spot interruption SIGTERM —
+         DESIGN_v3 §6.3), distinguished by reason.
+    arena.gateway.v1.SidecarMessage:
+      type: object
+      allOf:
+        - properties:
+            gameserverId:
+              type: string
+              title: gameserver_id
+              description: Declared in the first message (injected via Task metadata).
+            taskArn:
+              type: string
+              title: task_arn
+              description: |-
+                ECS Task ARN, presented in the first message. The gateway verifies it
+                 against DescribeTasks "startedBy" to prevent gameserver_id spoofing
+                 (DESIGN_v2 §6.4.3).
+        - oneOf:
+            - type: object
+              properties:
+                allocate:
+                  title: allocate
+                  $ref: '#/components/schemas/arena.gateway.v1.SelfAllocateRequest'
+              title: allocate
+              required:
+                - allocate
+            - type: object
+              properties:
+                counters:
+                  title: counters
+                  $ref: '#/components/schemas/arena.gateway.v1.CountersSync'
+              title: counters
+              required:
+                - counters
+            - type: object
+              properties:
+                heartbeat:
+                  title: heartbeat
+                  description: sent every 10 seconds
+                  $ref: '#/components/schemas/arena.gateway.v1.Heartbeat'
+              title: heartbeat
+              required:
+                - heartbeat
+            - type: object
+              properties:
+                ready:
+                  title: ready
+                  $ref: '#/components/schemas/arena.gateway.v1.ReadyRequest'
+              title: ready
+              required:
+                - ready
+            - type: object
+              properties:
+                reserve:
+                  title: reserve
+                  $ref: '#/components/schemas/arena.gateway.v1.ReserveRequest'
+              title: reserve
+              required:
+                - reserve
+            - type: object
+              properties:
+                setMetadata:
+                  title: set_metadata
+                  $ref: '#/components/schemas/arena.gateway.v1.SetMetadataRequest'
+              title: set_metadata
+              required:
+                - setMetadata
+            - type: object
+              properties:
+                shutdown:
+                  title: shutdown
+                  $ref: '#/components/schemas/arena.gateway.v1.ShutdownRequest'
+              title: shutdown
+              required:
+                - shutdown
+      title: SidecarMessage
+      additionalProperties: false
+    arena.v1.AllocateRequest:
+      type: object
+      properties:
+        idempotencyKey:
+          type: string
+          title: idempotency_key
+          description: |-
+            Required. allocation_id is derived from this key (UUIDv5), so resends
+             converge on the same record.
+        namespace:
+          type: string
+          title: namespace
+          description: Namespace to allocate from.
+        fleetName:
+          type: string
+          title: fleet_name
+          description: Fleet name to allocate from. Optional when fleet_selector is set.
+        metadata:
+          type: object
+          title: metadata
+          additionalProperties:
+            type: string
+            title: value
+          description: Metadata to attach to the allocation (e.g. sessionId).
+        selectors:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Selectors'
+          title: selectors
+          description: |-
+            Optional ordered selector fallback chain (Agones parity — DESIGN_v3
+             §4.1): selectors are tried first to last, and the first one with a
+             matching Ready server wins. A single selector on the wire decodes as a
+             one-element chain. Requests with selectors take the slower fleet-index
+             query path (DESIGN_v2 §4.2.2).
+        gameServerMetadata:
+          title: game_server_metadata
+          description: |-
+            Labels/annotations applied to the GameServer itself in the same
+             transaction that commits the allocation, and pushed to the game via
+             WatchGameServer (DESIGN_v3 §4.2). This is the matchmaker → game server
+             information channel; `metadata` above only annotates the Allocation
+             record.
+          $ref: '#/components/schemas/arena.v1.GameServerMetadata'
+        fleetSelector:
+          type: object
+          title: fleet_selector
+          additionalProperties:
+            type: string
+            title: value
+          description: |-
+            Cross-fleet allocation (DESIGN_v3 §4.3): when fleet_name is empty,
+             target fleets are resolved by these fleet labels (max 8 fleets, tried
+             in creation order; resolution is cached ~60s). Exactly one of
+             fleet_name / fleet_selector must be set.
+        counterFilters:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.CounterFilter'
+          title: counter_filters
+          description: |-
+            Counter capacity filters (DESIGN_v3 §5.2): only servers whose named
+             Counter satisfies every filter are candidates.
+        priorities:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Priority'
+          title: priorities
+          description: |-
+            Candidate ordering by Counter available capacity (DESIGN_v3 §5.2),
+             evaluated before the default oldest-Ready-first order.
+        allowAllocated:
+          type: boolean
+          title: allow_allocated
+          description: |-
+            High-density reallocation (DESIGN_v3 §5.3): also consider Allocated
+             servers with matching Counter capacity; a winning Allocated server
+             stays Allocated and gains an additional Allocation record. Requires at
+             least one counter_filter.
+      title: AllocateRequest
+      additionalProperties: false
+    arena.v1.AllocateRequest.FleetSelectorEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: FleetSelectorEntry
+      additionalProperties: false
+    arena.v1.AllocateRequest.MetadataEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: MetadataEntry
+      additionalProperties: false
+    arena.v1.AllocateResponse:
+      type: object
+      properties:
+        allocationId:
+          type: string
+          title: allocation_id
+          description: Deterministically derived from idempotency_key.
+        gameServer:
+          title: game_server
+          description: |-
+            The allocated GameServer, including address and ports for direct
+             client connection (no load balancer — DESIGN_v2 §6.1).
+          $ref: '#/components/schemas/arena.v1.GameServer'
+        allocatedAt:
+          type:
+            - integer
+            - string
+          title: allocated_at
+          format: int64
+          description: Allocation timestamp (epoch seconds).
+      title: AllocateResponse
+      additionalProperties: false
+    arena.v1.Allocation:
+      type: object
+      properties:
+        allocationId:
+          type: string
+          title: allocation_id
+        gameserverId:
+          type: string
+          title: gameserver_id
+        fleetId:
+          type: string
+          title: fleet_id
+        sessionId:
+          type: string
+          title: session_id
+        metadata:
+          type: object
+          title: metadata
+          additionalProperties:
+            type: string
+            title: value
+        allocatedAt:
+          type:
+            - integer
+            - string
+          title: allocated_at
+          format: int64
+          description: Epoch seconds; released_at is 0 while active.
+        releasedAt:
+          type:
+            - integer
+            - string
+          title: released_at
+          format: int64
+      title: Allocation
+      additionalProperties: false
+    arena.v1.Allocation.MetadataEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: MetadataEntry
+      additionalProperties: false
+    arena.v1.AllocationOverflow:
+      type: object
+      properties:
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+        annotations:
+          type: object
+          title: annotations
+          additionalProperties:
+            type: string
+            title: value
+      title: AllocationOverflow
+      additionalProperties: false
+    arena.v1.AllocationOverflow.AnnotationsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: AnnotationsEntry
+      additionalProperties: false
+    arena.v1.AllocationOverflow.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.ApplyFleetRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+          description: Manifest metadata.labels, including the arenactl management marker.
+        spec:
+          title: spec
+          description: |-
+            Full desired spec. Replaces spec.* wholesale except replicas
+             (ownership rules in FleetSpec.replicas).
+          $ref: '#/components/schemas/arena.v1.FleetSpec'
+        dryRun:
+          type: boolean
+          title: dry_run
+          description: When true, validate + normalize + diff without writing.
+      title: ApplyFleetRequest
+      additionalProperties: false
+    arena.v1.ApplyFleetRequest.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.ApplyFleetResponse:
+      type: object
+      properties:
+        action:
+          title: action
+          description: What was (or, for dry_run, would be) done.
+          $ref: '#/components/schemas/arena.v1.ApplyFleetResponse.Action'
+        fleet:
+          title: fleet
+          description: Resulting Fleet. For dry_run this is the projected result.
+          $ref: '#/components/schemas/arena.v1.Fleet'
+        normalizedSpec:
+          title: normalized_spec
+          description: |-
+            Server-normalized spec (defaults filled in). Clients diff against this
+             instead of re-implementing normalization (DESIGN_v2 §5.4.3).
+          $ref: '#/components/schemas/arena.v1.FleetSpec'
+        diff:
+          type: string
+          title: diff
+          description: |-
+            Human-readable structured diff between current and desired state.
+             Empty when action is ACTION_UNCHANGED.
+      title: ApplyFleetResponse
+      additionalProperties: false
+    arena.v1.ApplyFleetResponse.Action:
+      type: string
+      title: Action
+      enum:
+        - ACTION_UNSPECIFIED
+        - ACTION_CREATED
+        - ACTION_UPDATED
+        - ACTION_UNCHANGED
+    arena.v1.Autoscaling:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          title: enabled
+        policy:
+          title: policy
+          $ref: '#/components/schemas/arena.v1.AutoscalingPolicy'
+        minReplicas:
+          type: integer
+          title: min_replicas
+          format: int32
+          description: Clamp bounds for the computed desired replicas (min >= 0, max >= 1).
+        maxReplicas:
+          type: integer
+          title: max_replicas
+          format: int32
+      title: Autoscaling
+      additionalProperties: false
+      description: Autoscaling configuration (DESIGN_v2 §4.4).
+    arena.v1.AutoscalingPolicy:
+      type: object
+      properties:
+        type:
+          title: type
+          $ref: '#/components/schemas/arena.v1.AutoscalingPolicy.Type'
+        buffer:
+          title: buffer
+          $ref: '#/components/schemas/arena.v1.BufferPolicy'
+        schedule:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.SchedulePolicy'
+          title: schedule
+        webhook:
+          title: webhook
+          $ref: '#/components/schemas/arena.v1.WebhookPolicy'
+        counter:
+          title: counter
+          $ref: '#/components/schemas/arena.v1.CounterPolicy'
+        chain:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.ChainEntry'
+          title: chain
+          description: |-
+            Ordered chain (DESIGN_v3 §3.5): the first entry whose schedule matches
+             "now" is applied; an entry without a schedule always matches (put the
+             default last). Existing Schedule policies are sugar for a chain.
+      title: AutoscalingPolicy
+      additionalProperties: false
+    arena.v1.AutoscalingPolicy.Type:
+      type: string
+      title: Type
+      enum:
+        - TYPE_UNSPECIFIED
+        - TYPE_BUFFER
+        - TYPE_SCHEDULE
+        - TYPE_WEBHOOK
+        - TYPE_COUNTER
+        - TYPE_CHAIN
+    arena.v1.BufferPolicy:
+      type: object
+      properties:
+        bufferSize:
+          type: integer
+          title: buffer_size
+          format: int32
+          description: |-
+            Absolute number of ready servers to keep. Mutually exclusive with
+             buffer_percent.
+        bufferPercent:
+          type: integer
+          title: buffer_percent
+          format: int32
+          description: Percentage (0-100) of allocated servers to keep ready.
+      title: BufferPolicy
+      additionalProperties: false
+      description: desired = allocated + buffer, clamped to [min_replicas, max_replicas].
+    arena.v1.Capacity:
+      type: object
+      properties:
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.CapacityProvider'
+          title: providers
+      title: Capacity
+      additionalProperties: false
+      description: Capacity maps to the ECS capacityProviderStrategy (DESIGN_v3 §3.4).
+    arena.v1.CapacityProvider:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: e.g. "FARGATE", "FARGATE_SPOT", or a named EC2 capacity provider.
+        weight:
+          type: integer
+          title: weight
+          format: int32
+        base:
+          type: integer
+          title: base
+          format: int32
+      title: CapacityProvider
+      additionalProperties: false
+    arena.v1.ChainEntry:
+      type: object
+      properties:
+        schedule:
+          title: schedule
+          description: Optional activation window; absent = always applicable.
+          $ref: '#/components/schemas/arena.v1.ChainSchedule'
+        policy:
+          title: policy
+          description: |-
+            Policy applied while this entry is active. Chain inside chain is
+             rejected at validation.
+          $ref: '#/components/schemas/arena.v1.AutoscalingPolicy'
+      title: ChainEntry
+      additionalProperties: false
+    arena.v1.ChainSchedule:
+      type: object
+      properties:
+        cron:
+          type: string
+          title: cron
+          description: Cron expression for the window start.
+        durationSeconds:
+          type:
+            - integer
+            - string
+          title: duration_seconds
+          format: int64
+          description: Window length from each cron firing.
+      title: ChainSchedule
+      additionalProperties: false
+    arena.v1.ContainerHealthCheck:
+      type: object
+      properties:
+        command:
+          type: array
+          items:
+            type: string
+          title: command
+          description: e.g. ["CMD-SHELL", "curl -f http://localhost/ || exit 1"]
+        intervalSeconds:
+          type: integer
+          title: interval_seconds
+          format: int32
+        timeoutSeconds:
+          type: integer
+          title: timeout_seconds
+          format: int32
+        retries:
+          type: integer
+          title: retries
+          format: int32
+        startPeriodSeconds:
+          type: integer
+          title: start_period_seconds
+          format: int32
+      title: ContainerHealthCheck
+      additionalProperties: false
+    arena.v1.ContainerSpec:
+      type: object
+      properties:
+        image:
+          type: string
+          title: image
+          description: Container image, e.g. "myregistry/gameserver:v1.2.3". Required.
+        resources:
+          title: resources
+          $ref: '#/components/schemas/arena.v1.Resources'
+        environment:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.EnvVar'
+          title: environment
+        name:
+          type: string
+          title: name
+          description: |-
+            Container name; required in `containers`, ignored for the single
+             `container` form (which is named "game").
+        command:
+          type: array
+          items:
+            type: string
+          title: command
+          description: |-
+            Entrypoint / arguments / working directory (DESIGN_v3 §6.5 P1),
+             mapping to the containerDefinition fields of the same names.
+        args:
+          type: array
+          items:
+            type: string
+          title: args
+        workingDirectory:
+          type: string
+          title: working_directory
+        secrets:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.SecretRef'
+          title: secrets
+          description: |-
+            Secrets Manager / SSM references injected as environment variables.
+             Values never appear in manifests (DESIGN_v2 §5.4.6).
+        healthCheck:
+          title: health_check
+          description: |-
+            Container-level startup health check (ECS healthCheck). A different
+             role from SDK heartbeats: early detection of launch failures.
+          $ref: '#/components/schemas/arena.v1.ContainerHealthCheck'
+        mountPoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.MountPoint'
+          title: mount_points
+          description: Volume mounts referencing GameServerSpec.volumes by name.
+      title: ContainerSpec
+      additionalProperties: false
+    arena.v1.CounterAggregate:
+      type: object
+      properties:
+        count:
+          type:
+            - integer
+            - string
+          title: count
+          format: int64
+        capacity:
+          type:
+            - integer
+            - string
+          title: capacity
+          format: int64
+      title: CounterAggregate
+      additionalProperties: false
+    arena.v1.CounterFilter:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        minAvailable:
+          type:
+            - integer
+            - string
+          title: min_available
+          format: int64
+          description: |-
+            Minimum available capacity. Defaults to 1 (a filter that admits full
+             servers is useless).
+        maxAvailable:
+          type:
+            - integer
+            - string
+          title: max_available
+          format: int64
+          description: Maximum available capacity; 0 = unbounded.
+      title: CounterFilter
+      additionalProperties: false
+      description: |-
+        CounterFilter narrows candidates by a named Counter (DESIGN_v3 §5.2).
+         available = capacity - count.
+    arena.v1.CounterPolicy:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+          description: Counter name, e.g. "rooms".
+        bufferSize:
+          type:
+            - integer
+            - string
+          title: buffer_size
+          format: int64
+          description: Free capacity to keep available. Mutually exclusive with buffer_percent.
+        bufferPercent:
+          type: integer
+          title: buffer_percent
+          format: int32
+          description: Percentage (0-100) of aggregate capacity to keep free.
+      title: CounterPolicy
+      additionalProperties: false
+      description: |-
+        CounterPolicy scales on aggregate Counter capacity (DESIGN_v3 §5.4):
+         keep `buffer_size` free capacity (or buffer_percent of total capacity)
+         available across the fleet.
+    arena.v1.CreateFleetRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+        spec:
+          title: spec
+          $ref: '#/components/schemas/arena.v1.FleetSpec'
+      title: CreateFleetRequest
+      additionalProperties: false
+    arena.v1.CreateFleetRequest.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.DeleteFleetRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+      title: DeleteFleetRequest
+      additionalProperties: false
+    arena.v1.DeleteGameServerRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: GameServer ID.
+      title: DeleteGameServerRequest
+      additionalProperties: false
+    arena.v1.EFSVolume:
+      type: object
+      properties:
+        fileSystemId:
+          type: string
+          title: file_system_id
+        rootDirectory:
+          type: string
+          title: root_directory
+      title: EFSVolume
+      additionalProperties: false
+    arena.v1.EnvVar:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        value:
+          type: string
+          title: value
+      title: EnvVar
+      additionalProperties: false
+    arena.v1.Event:
+      type: object
+      properties:
+        resourceType:
+          type: string
+          title: resource_type
+          description: '"fleet" | "gameserver".'
+        resourceId:
+          type: string
+          title: resource_id
+          description: Resource ID (fleet_id / gameserver_id).
+        timestamp:
+          type:
+            - integer
+            - string
+          title: timestamp
+          format: int64
+          description: Epoch seconds.
+        type:
+          type: string
+          title: type
+          description: '"Normal" | "Warning".'
+        reason:
+          type: string
+          title: reason
+          description: Machine-readable reason, e.g. "Ready", "Unhealthy", "ScaleUp".
+        message:
+          type: string
+          title: message
+          description: Human-readable detail.
+      title: Event
+      additionalProperties: false
+    arena.v1.Fleet:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: Server-assigned UUID.
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+          description: 'Name. Pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$, max length 63.'
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+          description: |-
+            Metadata labels (also carries the arenactl management marker,
+             e.g. arena.dev/managed-by).
+        spec:
+          title: spec
+          description: Desired specification.
+          $ref: '#/components/schemas/arena.v1.FleetSpec'
+        status:
+          title: status
+          description: Observed status. Server-owned; not writable via the API.
+          $ref: '#/components/schemas/arena.v1.FleetStatus'
+        generation:
+          type:
+            - integer
+            - string
+          title: generation
+          format: int64
+          description: Incremented on every template change (rolling updates).
+        specHash:
+          type: string
+          title: spec_hash
+          description: Hash of spec.template, propagated to GameServers.
+        version:
+          type:
+            - integer
+            - string
+          title: version
+          format: int64
+          description: Optimistic-lock version. Required on UpdateFleet.
+        createdAt:
+          type:
+            - integer
+            - string
+          title: created_at
+          format: int64
+          description: Timestamps (epoch seconds).
+        updatedAt:
+          type:
+            - integer
+            - string
+          title: updated_at
+          format: int64
+      title: Fleet
+      additionalProperties: false
+      description: |-
+        Fleet is the declaratively managed resource (DESIGN_v2 §5.4).
+         Identity is (namespace, name); "id" is a server-assigned internal UUID
+         that never appears in manifests.
+    arena.v1.Fleet.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.FleetSpec:
+      type: object
+      properties:
+        replicas:
+          type:
+            - integer
+            - "null"
+          title: replicas
+          format: int32
+          description: |-
+            Desired replica count (0-10000).
+             Ownership rule (DESIGN_v2 §4.4, §5.4.4):
+               - autoscaling.enabled=false: owned by the user / manifest.
+               - autoscaling.enabled=true:  owned by the Autoscale reconciler; a
+                 manifest that sets replicas is rejected with FAILED_PRECONDITION.
+             When omitted on Apply, the server keeps the current value.
+        scheduling:
+          title: scheduling
+          $ref: '#/components/schemas/arena.v1.FleetSpec.Scheduling'
+        template:
+          title: template
+          description: Template for GameServers launched by this Fleet.
+          $ref: '#/components/schemas/arena.v1.GameServerTemplate'
+        autoscaling:
+          title: autoscaling
+          description: |-
+            Autoscaler configuration. 1:1 with the Fleet, not a separate resource
+             (DESIGN_v2 §3.1).
+          $ref: '#/components/schemas/arena.v1.Autoscaling'
+        strategy:
+          title: strategy
+          description: |-
+            Template rollout strategy (DESIGN_v3 §3.1). Defaults to RollingUpdate
+             with 25% surge / 25% unavailable.
+          $ref: '#/components/schemas/arena.v1.Strategy'
+        allocationOverflow:
+          title: allocation_overflow
+          description: |-
+            Labels/annotations applied to Allocated servers that exceed the desired
+             count during scale-down or an update, so the game can wind the session
+             down and self-Shutdown (Agones allocationOverflow — DESIGN_v3 §3.2).
+          $ref: '#/components/schemas/arena.v1.AllocationOverflow'
+        capacity:
+          title: capacity
+          description: |-
+            Capacity selection per fleet (DESIGN_v3 §3.4) — the arena equivalent of
+             Agones eviction.safe: Spot-heavy providers declare interruption
+             tolerance, On-Demand-only providers declare "never evict". Omitted =
+             controller defaults.
+          $ref: '#/components/schemas/arena.v1.Capacity'
+        network:
+          title: network
+          description: |-
+            Task networking overrides (DESIGN_v3 §3.4). Omitted = controller
+             defaults.
+          $ref: '#/components/schemas/arena.v1.Network'
+        drainGraceSeconds:
+          type: integer
+          title: drain_grace_seconds
+          format: int32
+          description: |-
+            ECS stopTimeout for the game container (seconds): the SIGTERM → SIGKILL
+             drain window used by Spot interruption and scale-down (DESIGN_v3 §6.3).
+             Fargate caps this at 120. 0 = ECS default (30).
+      title: FleetSpec
+      additionalProperties: false
+      description: |-
+        FleetSpec is the user-controlled part of a Fleet. This message is also the
+         schema for the manifest "spec" block (YAML → JSON → protojson).
+    arena.v1.FleetSpec.Scheduling:
+      type: string
+      title: Scheduling
+      enum:
+        - SCHEDULING_UNSPECIFIED
+        - SCHEDULING_PACKED
+        - SCHEDULING_DISTRIBUTED
+      description: |-
+        Scheduling strategy. Only effective in EC2 mode; ignored on Fargate
+         (DESIGN_v2 §9.2).
+    arena.v1.FleetStatus:
+      type: object
+      properties:
+        total:
+          type: integer
+          title: total
+          format: int32
+        ready:
+          type: integer
+          title: ready
+          format: int32
+        allocated:
+          type: integer
+          title: allocated
+          format: int32
+        starting:
+          type: integer
+          title: starting
+          format: int32
+        reserved:
+          type: integer
+          title: reserved
+          format: int32
+        updated:
+          type: integer
+          title: updated
+          format: int32
+          description: |-
+            Active GameServers on the current spec_hash generation. Equal to total
+             when no rolling update is in progress (DESIGN_v3 §3.1).
+        counters:
+          type: object
+          title: counters
+          additionalProperties:
+            title: value
+            $ref: '#/components/schemas/arena.v1.CounterAggregate'
+          description: |-
+            Fleet-wide Counter aggregation (DESIGN_v3 §5.1), refreshed by the
+             controller from Redis on the reconcile cadence. Autoscaler input and
+             observability; not a real-time view.
+      title: FleetStatus
+      additionalProperties: false
+      description: FleetStatus is maintained by arena-controller.
+    arena.v1.FleetStatus.CountersEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          title: value
+          $ref: '#/components/schemas/arena.v1.CounterAggregate'
+      title: CountersEntry
+      additionalProperties: false
+    arena.v1.GameServer:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: Unique identifier (server-assigned UUID).
+        name:
+          type: string
+          title: name
+          description: Name of the GameServer.
+        namespace:
+          type: string
+          title: namespace
+          description: Namespace.
+        fleetId:
+          type: string
+          title: fleet_id
+          description: Owning Fleet ID.
+        state:
+          title: state
+          description: Current state.
+          $ref: '#/components/schemas/arena.v1.GameServer.State'
+        address:
+          type: string
+          title: address
+          description: |-
+            Publicly reachable address of the Task. Named "address" rather than
+             "ip_address" because in EC2 mode it is not necessarily the ENI IP.
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Port'
+          title: ports
+          description: Port configuration.
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+          description: Metadata.
+        annotations:
+          type: object
+          title: annotations
+          additionalProperties:
+            type: string
+            title: value
+        specHash:
+          type: string
+          title: spec_hash
+          description: Fleet spec_hash the server was launched with (rolling-update generation).
+        createdAt:
+          type:
+            - integer
+            - string
+          title: created_at
+          format: int64
+          description: Timestamps (epoch seconds).
+        readyAt:
+          type:
+            - integer
+            - string
+          title: ready_at
+          format: int64
+        allocatedAt:
+          type:
+            - integer
+            - string
+          title: allocated_at
+          format: int64
+        reservedUntil:
+          type:
+            - integer
+            - string
+          title: reserved_until
+          format: int64
+          description: |-
+            When a Reserved server automatically returns to Ready (epoch seconds).
+             0 while Reserved means "until the SDK says otherwise" (DESIGN_v3 §2.1).
+        taskArn:
+          type: string
+          title: task_arn
+          description: |-
+            Backing ECS task (admin/debugging: arenactl logs resolves the
+             CloudWatch log stream from the task ID — DESIGN_v3 §6.7).
+      title: GameServer
+      additionalProperties: false
+      description: |-
+        GameServer is a single game server instance backed by an ECS Task.
+         It is a runtime resource created by the Fleet reconciler and is not
+         managed declaratively (DESIGN_v2 §5.4.1).
+
+         This is the single shared definition; sdk.proto and allocation.proto
+         import it instead of redefining their own copies.
+    arena.v1.GameServer.AnnotationsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: AnnotationsEntry
+      additionalProperties: false
+    arena.v1.GameServer.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.GameServer.State:
+      type: string
+      title: State
+      enum:
+        - STATE_UNSPECIFIED
+        - STATE_SCHEDULED
+        - STATE_STARTING
+        - STATE_READY
+        - STATE_ALLOCATED
+        - STATE_DRAINING
+        - STATE_UNHEALTHY
+        - STATE_TERMINATED
+        - STATE_RESERVED
+      description: |-
+        State follows the v2 state machine (DESIGN_v2 §4.1.1) extended with
+         Reserved (DESIGN_v3 §2.1). Every transition is enforced with a DynamoDB
+         conditional write.
+    arena.v1.GameServerMetadata:
+      type: object
+      properties:
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+        annotations:
+          type: object
+          title: annotations
+          additionalProperties:
+            type: string
+            title: value
+      title: GameServerMetadata
+      additionalProperties: false
+      description: GameServerMetadata is patched onto the allocated GameServer.
+    arena.v1.GameServerMetadata.AnnotationsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: AnnotationsEntry
+      additionalProperties: false
+    arena.v1.GameServerMetadata.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.GameServerSpec:
+      type: object
+      properties:
+        container:
+          title: container
+          description: |-
+            Single-container sugar (DESIGN_v3 §6.5): equivalent to a one-element
+             `containers` list. Mutually exclusive with `containers`.
+          $ref: '#/components/schemas/arena.v1.ContainerSpec'
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.PortSpec'
+          title: ports
+          description: Exposed ports (on the game container).
+        health:
+          title: health
+          description: Health-check configuration used by the Health reconciler.
+          $ref: '#/components/schemas/arena.v1.HealthSpec'
+        containers:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.ContainerSpec'
+          title: containers
+          description: |-
+            Multi-container tasks (DESIGN_v3 §6.5 P2). When used, `game_container`
+             names the container that runs the game (SDK identity, ports).
+        gameContainer:
+          type: string
+          title: game_container
+        volumes:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.VolumeSpec'
+          title: volumes
+          description: Task volumes (EFS / host bind) mountable via ContainerSpec.mount_points.
+      title: GameServerSpec
+      additionalProperties: false
+      description: |-
+        GameServerSpec maps to the ECS task definition synthesized by the
+         controller (SDK sidecar container is injected at generation time).
+    arena.v1.GameServerTemplate:
+      type: object
+      properties:
+        metadata:
+          title: metadata
+          description: Labels/annotations applied to created GameServers.
+          $ref: '#/components/schemas/arena.v1.TemplateMetadata'
+        spec:
+          title: spec
+          description: GameServer specification.
+          $ref: '#/components/schemas/arena.v1.GameServerSpec'
+      title: GameServerTemplate
+      additionalProperties: false
+      description: GameServerTemplate describes the GameServers a Fleet creates.
+    arena.v1.GetAllocationRequest:
+      type: object
+      properties:
+        allocationId:
+          type: string
+          title: allocation_id
+      title: GetAllocationRequest
+      additionalProperties: false
+    arena.v1.GetFleetRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+      title: GetFleetRequest
+      additionalProperties: false
+    arena.v1.GetGameServerRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          title: id
+          description: GameServer ID.
+      title: GetGameServerRequest
+      additionalProperties: false
+    arena.v1.HealthSpec:
+      type: object
+      properties:
+        initialDelaySeconds:
+          type: integer
+          title: initial_delay_seconds
+          format: int32
+          description: Grace period after start before health is evaluated. Default 30.
+        periodSeconds:
+          type: integer
+          title: period_seconds
+          format: int32
+          description: Expected heartbeat interval in seconds. Default 10.
+        failureThreshold:
+          type: integer
+          title: failure_threshold
+          format: int32
+          description: Missed heartbeats before the server is marked Unhealthy. Default 3.
+        disabled:
+          type: boolean
+          title: disabled
+          description: |-
+            Disable the heartbeat sweep for this fleet (SDK-less migration phase —
+             DESIGN_v3 §2.6). Task-level failure detection (STOPPED events) stays on.
+      title: HealthSpec
+      additionalProperties: false
+      description: HealthSpec configures liveness expectations for the game server process.
+    arena.v1.HostVolume:
+      type: object
+      properties:
+        sourcePath:
+          type: string
+          title: source_path
+      title: HostVolume
+      additionalProperties: false
+    arena.v1.KeyValue:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: KeyValue
+      additionalProperties: false
+    arena.v1.ListEventsRequest:
+      type: object
+      properties:
+        resourceType:
+          type: string
+          title: resource_type
+          description: Required. "fleet" | "gameserver".
+        resourceId:
+          type: string
+          title: resource_id
+          description: Required.
+        limit:
+          type: integer
+          title: limit
+          format: int32
+          description: Newest-first limit (default 50, max 200).
+      title: ListEventsRequest
+      additionalProperties: false
+    arena.v1.ListEventsResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Event'
+          title: events
+      title: ListEventsResponse
+      additionalProperties: false
+    arena.v1.ListFleetsRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        pageSize:
+          type: integer
+          title: page_size
+          format: int32
+          description: Page size (default 100, max 1000).
+        pageToken:
+          type: string
+          title: page_token
+      title: ListFleetsRequest
+      additionalProperties: false
+    arena.v1.ListFleetsResponse:
+      type: object
+      properties:
+        fleets:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Fleet'
+          title: fleets
+        nextPageToken:
+          type: string
+          title: next_page_token
+      title: ListFleetsResponse
+      additionalProperties: false
+    arena.v1.ListGameServersRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+          description: Namespace to list from.
+        fleetName:
+          type: string
+          title: fleet_name
+          description: 'Optional: restrict to a fleet (uses the fleet-index GSI).'
+        state:
+          title: state
+          description: 'Optional: filter by state.'
+          $ref: '#/components/schemas/arena.v1.GameServer.State'
+        pageSize:
+          type: integer
+          title: page_size
+          format: int32
+          description: Page size (default 100, max 1000).
+        pageToken:
+          type: string
+          title: page_token
+          description: Opaque pagination token from a previous response.
+      title: ListGameServersRequest
+      additionalProperties: false
+    arena.v1.ListGameServersResponse:
+      type: object
+      properties:
+        gameServers:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.GameServer'
+          title: game_servers
+        nextPageToken:
+          type: string
+          title: next_page_token
+          description: Empty when there are no further pages.
+      title: ListGameServersResponse
+      additionalProperties: false
+    arena.v1.MountPoint:
+      type: object
+      properties:
+        volume:
+          type: string
+          title: volume
+          description: Name of a GameServerSpec.volumes entry.
+        containerPath:
+          type: string
+          title: container_path
+        readOnly:
+          type: boolean
+          title: read_only
+      title: MountPoint
+      additionalProperties: false
+    arena.v1.Network:
+      type: object
+      properties:
+        assignPublicIp:
+          type:
+            - boolean
+            - "null"
+          title: assign_public_ip
+          description: Defaults to true (direct-connect model — DESIGN_v2 §6.1).
+        securityGroups:
+          type: array
+          items:
+            type: string
+          title: security_groups
+        subnets:
+          type: array
+          items:
+            type: string
+          title: subnets
+      title: Network
+      additionalProperties: false
+      description: Network overrides for launched tasks (awsvpc — DESIGN_v3 §3.4).
+    arena.v1.Port:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: Name of the port (e.g. "game").
+        port:
+          type: integer
+          title: port
+          format: int32
+          description: Port number (1-65535).
+        protocol:
+          title: protocol
+          description: Protocol.
+          $ref: '#/components/schemas/arena.v1.Port.Protocol'
+      title: Port
+      additionalProperties: false
+      description: Port is a single exposed port of a GameServer.
+    arena.v1.Port.Protocol:
+      type: string
+      title: Protocol
+      enum:
+        - PROTOCOL_UNSPECIFIED
+        - PROTOCOL_UDP
+        - PROTOCOL_TCP
+        - PROTOCOL_TCPUDP
+    arena.v1.PortSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: Name of the port. Required.
+        containerPort:
+          type: integer
+          title: container_port
+          format: int32
+          description: Container port (1-65535). Required unless policy is PASSTHROUGH.
+        protocol:
+          title: protocol
+          description: |-
+            Protocol. Defaults to UDP when unspecified. TCPUDP expands into a
+             TCP + UDP pair on the same port number.
+          $ref: '#/components/schemas/arena.v1.Port.Protocol'
+        policy:
+          title: policy
+          $ref: '#/components/schemas/arena.v1.PortSpec.Policy'
+      title: PortSpec
+      additionalProperties: false
+    arena.v1.PortSpec.Policy:
+      type: string
+      title: Policy
+      enum:
+        - POLICY_UNSPECIFIED
+        - POLICY_STATIC
+        - POLICY_PASSTHROUGH
+      description: |-
+        Port assignment policy (DESIGN_v3 §6.2). awsvpc gives every task its own
+         ENI, so no Dynamic policy exists — ports only need uniqueness within the
+         task.
+    arena.v1.Priority:
+      type: object
+      properties:
+        counter:
+          type: string
+          title: counter
+        order:
+          title: order
+          $ref: '#/components/schemas/arena.v1.Priority.Order'
+      title: Priority
+      additionalProperties: false
+      description: Priority orders candidates by Counter available capacity.
+    arena.v1.Priority.Order:
+      type: string
+      title: Order
+      enum:
+        - ORDER_UNSPECIFIED
+        - ORDER_ASCENDING
+        - ORDER_DESCENDING
+    arena.v1.ReleaseRequest:
+      type: object
+      properties:
+        allocationId:
+          type: string
+          title: allocation_id
+      title: ReleaseRequest
+      additionalProperties: false
+    arena.v1.Requirement:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        operator:
+          title: operator
+          $ref: '#/components/schemas/arena.v1.Requirement.Operator'
+        values:
+          type: array
+          items:
+            type: string
+          title: values
+      title: Requirement
+      additionalProperties: false
+    arena.v1.Requirement.Operator:
+      type: string
+      title: Operator
+      enum:
+        - OPERATOR_UNSPECIFIED
+        - OPERATOR_EQUALS
+        - OPERATOR_NOT_EQUALS
+        - OPERATOR_IN
+        - OPERATOR_NOT_IN
+        - OPERATOR_EXISTS
+        - OPERATOR_NOT_EXISTS
+    arena.v1.Resources:
+      type: object
+      properties:
+        cpu:
+          type: string
+          title: cpu
+          description: CPU units (1024 = 1 vCPU), e.g. "1024".
+        memory:
+          type: string
+          title: memory
+          description: Memory in MB, e.g. "2048".
+      title: Resources
+      additionalProperties: false
+    arena.v1.RollingUpdate:
+      type: object
+      properties:
+        maxSurge:
+          type: string
+          title: max_surge
+          description: |-
+            How many servers above spec.replicas may exist during an update.
+             Absolute count ("3") or percentage of replicas ("25%", rounded up).
+             Default "25%".
+        maxUnavailable:
+          type: string
+          title: max_unavailable
+          description: |-
+            How far the fleet-wide Ready count may dip below spec.replicas while old
+             generations drain. Absolute count or percentage (rounded down).
+             Default "25%".
+        drainTimeoutSeconds:
+          type:
+            - integer
+            - string
+          title: drain_timeout_seconds
+          format: int64
+          description: |-
+            Optional deadline for old-generation Allocated servers: once an update
+             has been in progress this long, remaining old Allocated servers are
+             force-drained. 0 (default) waits indefinitely for sessions to end,
+             matching Agones (DESIGN_v3 §3.1).
+      title: RollingUpdate
+      additionalProperties: false
+    arena.v1.ScaleFleetRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+        replicas:
+          type: integer
+          title: replicas
+          format: int32
+          description: Desired replicas (0-10000).
+      title: ScaleFleetRequest
+      additionalProperties: false
+    arena.v1.SchedulePolicy:
+      type: object
+      properties:
+        cron:
+          type: string
+          title: cron
+          description: Cron expression.
+        replicas:
+          type: integer
+          title: replicas
+          format: int32
+      title: SchedulePolicy
+      additionalProperties: false
+    arena.v1.SecretRef:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+          description: Environment variable name.
+        valueFrom:
+          type: string
+          title: value_from
+          description: Secrets Manager or SSM parameter ARN.
+      title: SecretRef
+      additionalProperties: false
+    arena.v1.Selectors:
+      type: object
+      properties:
+        matchLabels:
+          type: object
+          title: match_labels
+          additionalProperties:
+            type: string
+            title: value
+          description: Label selector (exact match on every entry).
+        matchFields:
+          type: object
+          title: match_fields
+          additionalProperties:
+            type: string
+            title: value
+          description: 'Field selector. Supported keys: "id", "spec_hash".'
+        required:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Requirement'
+          title: required
+          description: Required requirements (all must match).
+        preferred:
+          type: array
+          items:
+            $ref: '#/components/schemas/arena.v1.Requirement'
+          title: preferred
+          description: |-
+            Preferred requirements: candidates matching more of these are tried
+             first (ties broken oldest-Ready-first).
+      title: Selectors
+      additionalProperties: false
+      description: |-
+        Selectors narrow candidate GameServers. All specified parts must match
+         (AND); `preferred` never disqualifies, it only orders candidates.
+    arena.v1.Selectors.MatchFieldsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: MatchFieldsEntry
+      additionalProperties: false
+    arena.v1.Selectors.MatchLabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: MatchLabelsEntry
+      additionalProperties: false
+    arena.v1.Strategy:
+      type: object
+      properties:
+        type:
+          title: type
+          $ref: '#/components/schemas/arena.v1.Strategy.Type'
+        rollingUpdate:
+          title: rolling_update
+          $ref: '#/components/schemas/arena.v1.RollingUpdate'
+      title: Strategy
+      additionalProperties: false
+      description: |-
+        Strategy controls how template changes roll out across a fleet's servers
+         (generation = spec_hash; there is no GameServerSet — DESIGN_v3 §3.1).
+    arena.v1.Strategy.Type:
+      type: string
+      title: Type
+      enum:
+        - TYPE_UNSPECIFIED
+        - TYPE_ROLLING_UPDATE
+        - TYPE_RECREATE
+    arena.v1.TemplateMetadata:
+      type: object
+      properties:
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+        annotations:
+          type: object
+          title: annotations
+          additionalProperties:
+            type: string
+            title: value
+      title: TemplateMetadata
+      additionalProperties: false
+    arena.v1.TemplateMetadata.AnnotationsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: AnnotationsEntry
+      additionalProperties: false
+    arena.v1.TemplateMetadata.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.UpdateFleetRequest:
+      type: object
+      properties:
+        namespace:
+          type: string
+          title: namespace
+        name:
+          type: string
+          title: name
+        labels:
+          type: object
+          title: labels
+          additionalProperties:
+            type: string
+            title: value
+        spec:
+          title: spec
+          $ref: '#/components/schemas/arena.v1.FleetSpec'
+        version:
+          type:
+            - integer
+            - string
+          title: version
+          format: int64
+          description: Required. Mismatch with the stored version → ABORTED.
+      title: UpdateFleetRequest
+      additionalProperties: false
+    arena.v1.UpdateFleetRequest.LabelsEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: LabelsEntry
+      additionalProperties: false
+    arena.v1.VolumeSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          title: name
+        efs:
+          title: efs
+          $ref: '#/components/schemas/arena.v1.EFSVolume'
+        host:
+          title: host
+          $ref: '#/components/schemas/arena.v1.HostVolume'
+      title: VolumeSpec
+      additionalProperties: false
+    arena.v1.WebhookPolicy:
+      type: object
+      properties:
+        url:
+          type: string
+          title: url
+        headers:
+          type: object
+          title: headers
+          additionalProperties:
+            type: string
+            title: value
+          description: |-
+            Static headers attached to every request (e.g. a shared-secret
+             Authorization header). IAM SigV4 is applied by infrastructure when the
+             endpoint requires it.
+      title: WebhookPolicy
+      additionalProperties: false
+      description: |-
+        Webhook policy (DESIGN_v3 §3.5): POST {fleet, status} to the endpoint,
+         receive {replicas}. Calls are protected by timeout + circuit breaker; on
+         failure the current replica count is kept.
+    arena.v1.WebhookPolicy.HeadersEntry:
+      type: object
+      properties:
+        key:
+          type: string
+          title: key
+        value:
+          type: string
+          title: value
+      title: HeadersEntry
+      additionalProperties: false
+    connect-protocol-version:
+      type: number
+      title: Connect-Protocol-Version
+      enum:
+        - 1
+      description: Define the version of the Connect protocol
+      const: 1
+    connect-timeout-header:
+      type: number
+      title: Connect-Timeout-Ms
+      description: Define the timeout, in ms
+    connect.error:
+      type: object
+      properties:
+        code:
+          type: string
+          examples:
+            - not_found
+          enum:
+            - canceled
+            - unknown
+            - invalid_argument
+            - deadline_exceeded
+            - not_found
+            - already_exists
+            - permission_denied
+            - resource_exhausted
+            - failed_precondition
+            - aborted
+            - out_of_range
+            - unimplemented
+            - internal
+            - unavailable
+            - data_loss
+            - unauthenticated
+          description: The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
+        message:
+          type: string
+          description: A developer-facing error message, which should be in English. Any user-facing error message should be localized and sent in the [google.rpc.Status.details][google.rpc.Status.details] field, or localized by the client.
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/connect.error_details.Any'
+          description: A list of messages that carry the error details. There is no limit on the number of messages.
+      title: Connect Error
+      additionalProperties: true
+      description: 'Error type returned by Connect: https://connectrpc.com/docs/go/errors/#http-representation'
+    connect.error_details.Any:
+      type: object
+      properties:
+        type:
+          type: string
+          description: 'A URL that acts as a globally unique identifier for the type of the serialized message. For example: `type.googleapis.com/google.rpc.ErrorInfo`. This is used to determine the schema of the data in the `value` field and is the discriminator for the `debug` field.'
+        value:
+          type: string
+          format: binary
+          description: The Protobuf message, serialized as bytes and base64-encoded. The specific message type is identified by the `type` field.
+        debug:
+          oneOf:
+            - type: object
+              title: Any
+              additionalProperties: true
+              description: Detailed error information.
+          discriminator:
+            propertyName: type
+          title: Debug
+          description: Deserialized error detail payload. The 'type' field indicates the schema. This field is for easier debugging and should not be relied upon for application logic.
+      additionalProperties: true
+      description: Contains an arbitrary serialized message along with a @type that describes the type of the serialized message, with an additional debug field for ConnectRPC error details.
+    google.protobuf.Duration:
+      type: string
+      format: duration
+      description: |-
+        A Duration represents a signed, fixed-length span of time represented
+         as a count of seconds and fractions of seconds at nanosecond
+         resolution. It is independent of any calendar and concepts like "day"
+         or "month". It is related to Timestamp in that the difference between
+         two Timestamp values is a Duration and it can be added or subtracted
+         from a Timestamp. Range is approximately +-10,000 years.
+
+         # Examples
+
+         Example 1: Compute Duration from two Timestamps in pseudo code.
+
+             Timestamp start = ...;
+             Timestamp end = ...;
+             Duration duration = ...;
+
+             duration.seconds = end.seconds - start.seconds;
+             duration.nanos = end.nanos - start.nanos;
+
+             if (duration.seconds < 0 && duration.nanos > 0) {
+               duration.seconds += 1;
+               duration.nanos -= 1000000000;
+             } else if (duration.seconds > 0 && duration.nanos < 0) {
+               duration.seconds -= 1;
+               duration.nanos += 1000000000;
+             }
+
+         Example 2: Compute Timestamp from Timestamp + Duration in pseudo code.
+
+             Timestamp start = ...;
+             Duration duration = ...;
+             Timestamp end = ...;
+
+             end.seconds = start.seconds + duration.seconds;
+             end.nanos = start.nanos + duration.nanos;
+
+             if (end.nanos < 0) {
+               end.seconds -= 1;
+               end.nanos += 1000000000;
+             } else if (end.nanos >= 1000000000) {
+               end.seconds += 1;
+               end.nanos -= 1000000000;
+             }
+
+         Example 3: Compute Duration from datetime.timedelta in Python.
+
+             td = datetime.timedelta(days=3, minutes=10)
+             duration = Duration()
+             duration.FromTimedelta(td)
+
+         # JSON Mapping
+
+         In JSON format, the Duration type is encoded as a string rather than an
+         object, where the string ends in the suffix "s" (indicating seconds) and
+         is preceded by the number of seconds, with nanoseconds expressed as
+         fractional seconds. For example, 3 seconds with 0 nanoseconds should be
+         encoded in JSON format as "3s", while 3 seconds and 1 nanosecond should
+         be expressed in JSON format as "3.000000001s", and 3 seconds and 1
+         microsecond should be expressed in JSON format as "3.000001s".
+    google.protobuf.Empty:
+      type: object
+      description: |-
+        A generic empty message that you can re-use to avoid defining duplicated
+         empty messages in your APIs. A typical example is to use it as the request
+         or the response type of an API method. For instance:
+
+             service Foo {
+               rpc Bar(google.protobuf.Empty) returns (google.protobuf.Empty);
+             }
+    google.protobuf.FieldMask:
+      type: string
+      description: |-
+        `FieldMask` represents a set of symbolic field paths, for example:
+
+             paths: "f.a"
+             paths: "f.b.d"
+
+         Here `f` represents a field in some root message, `a` and `b`
+         fields in the message found in `f`, and `d` a field found in the
+         message in `f.b`.
+
+         Field masks are used to specify a subset of fields that should be
+         returned by a get operation or modified by an update operation.
+         Field masks also have a custom JSON encoding (see below).
+
+         # Field Masks in Projections
+
+         When used in the context of a projection, a response message or
+         sub-message is filtered by the API to only contain those fields as
+         specified in the mask. For example, if the mask in the previous
+         example is applied to a response message as follows:
+
+             f {
+               a : 22
+               b {
+                 d : 1
+                 x : 2
+               }
+               y : 13
+             }
+             z: 8
+
+         The result will not contain specific values for fields x,y and z
+         (their value will be set to the default, and omitted in proto text
+         output):
+
+
+             f {
+               a : 22
+               b {
+                 d : 1
+               }
+             }
+
+         A repeated field is not allowed except at the last position of a
+         paths string.
+
+         If a FieldMask object is not present in a get operation, the
+         operation applies to all fields (as if a FieldMask of all fields
+         had been specified).
+
+         Note that a field mask does not necessarily apply to the
+         top-level response message. In case of a REST get operation, the
+         field mask applies directly to the response, but in case of a REST
+         list operation, the mask instead applies to each individual message
+         in the returned resource list. In case of a REST custom method,
+         other definitions may be used. Where the mask applies will be
+         clearly documented together with its declaration in the API.  In
+         any case, the effect on the returned resource/resources is required
+         behavior for APIs.
+
+         # Field Masks in Update Operations
+
+         A field mask in update operations specifies which fields of the
+         targeted resource are going to be updated. The API is required
+         to only change the values of the fields as specified in the mask
+         and leave the others untouched. If a resource is passed in to
+         describe the updated values, the API ignores the values of all
+         fields not covered by the mask.
+
+         If a repeated field is specified for an update operation, new values will
+         be appended to the existing repeated field in the target resource. Note that
+         a repeated field is only allowed in the last position of a `paths` string.
+
+         If a sub-message is specified in the last position of the field mask for an
+         update operation, then new value will be merged into the existing sub-message
+         in the target resource.
+
+         For example, given the target message:
+
+             f {
+               b {
+                 d: 1
+                 x: 2
+               }
+               c: [1]
+             }
+
+         And an update message:
+
+             f {
+               b {
+                 d: 10
+               }
+               c: [2]
+             }
+
+         then if the field mask is:
+
+          paths: ["f.b", "f.c"]
+
+         then the result will be:
+
+             f {
+               b {
+                 d: 10
+                 x: 2
+               }
+               c: [1, 2]
+             }
+
+         An implementation may provide options to override this default behavior for
+         repeated and message fields.
+
+         In order to reset a field's value to the default, the field must
+         be in the mask and set to the default value in the provided resource.
+         Hence, in order to reset all fields of a resource, provide a default
+         instance of the resource and set all fields in the mask, or do
+         not provide a mask as described below.
+
+         If a field mask is not present on update, the operation applies to
+         all fields (as if a field mask of all fields has been specified).
+         Note that in the presence of schema evolution, this may mean that
+         fields the client does not know and has therefore not filled into
+         the request will be reset to their default. If this is unwanted
+         behavior, a specific service may require a client to always specify
+         a field mask, producing an error if not.
+
+         As with get operations, the location of the resource which
+         describes the updated values in the request message depends on the
+         operation kind. In any case, the effect of the field mask is
+         required to be honored by the API.
+
+         ## Considerations for HTTP REST
+
+         The HTTP kind of an update operation which uses a field mask must
+         be set to PATCH instead of PUT in order to satisfy HTTP semantics
+         (PUT must only be used for full updates).
+
+         # JSON Encoding of Field Masks
+
+         In JSON, a field mask is encoded as a single string where paths are
+         separated by a comma. Fields name in each path are converted
+         to/from lower-camel naming conventions.
+
+         As an example, consider the following message declarations:
+
+             message Profile {
+               User user = 1;
+               Photo photo = 2;
+             }
+             message User {
+               string display_name = 1;
+               string address = 2;
+             }
+
+         In proto a field mask for `Profile` may look as such:
+
+             mask {
+               paths: "user.display_name"
+               paths: "photo"
+             }
+
+         In JSON, the same mask is represented as below:
+
+             {
+               mask: "user.displayName,photo"
+             }
+
+         # Field Masks and Oneof Fields
+
+         Field masks treat fields in oneofs just as regular fields. Consider the
+         following message:
+
+             message SampleMessage {
+               oneof test_oneof {
+                 string name = 4;
+                 SubMessage sub_message = 9;
+               }
+             }
+
+         The field mask can be:
+
+             mask {
+               paths: "name"
+             }
+
+         Or:
+
+             mask {
+               paths: "sub_message"
+             }
+
+         Note that oneof type names ("test_oneof" in this case) cannot be used in
+         paths.
+
+         ## Field Mask Verification
+
+         The implementation of any API method which has a FieldMask type field in the
+         request should verify the included field paths, and return an
+         `INVALID_ARGUMENT` error if any path is unmappable.
+security: []
+tags:
+  - name: agones.dev.sdk.beta.SDK
+    description: SDK service to be used in the GameServer SDK to the Pod Sidecar.
+  - name: agones.dev.sdk.SDK
+    description: SDK service to be used in the GameServer SDK to the Pod Sidecar.
+  - name: arena.v1.GameServerService
+    description: |-
+      GameServerService provides access to GameServers. Reads are open to every
+       role; DeleteGameServer requires fleet-editor or admin.
+  - name: arena.gateway.v1.SDKGateway
+    description: |-
+      SDKGateway is the internal protocol between the SDK sidecar and arena-api
+       (DESIGN_v2 §4.3). It is not exposed to game developers; the public SDK
+       surface (arena/v1/sdk.proto) stays stable while this protocol evolves.
+  - name: arena.v1.AllocationService
+    description: |-
+      AllocationService hands Ready GameServers to callers (matchmakers).
+       The hot path is lock-free: Redis ZPOPMIN + DynamoDB conditional commit
+       (DESIGN_v2 §4.2.1).
+  - name: arena.v1.EventService
+    description: |-
+      EventService exposes object events (the `kubectl describe` Events
+       equivalent — DESIGN_v3 §6.6). Events are written by arena-controller and
+       arena-api at state transitions, allocations, and errors, and expire after
+       7 days (DynamoDB TTL).
+  - name: arena.v1.FleetService
+    description: |-
+      FleetService manages Fleets. Errors follow DESIGN_v2 §5.2:
+       version conflict → ABORTED, scaling an autoscaled fleet or an invalid
+       state transition → FAILED_PRECONDITION.
+  - name: arena.v1.SDK
+    description: |-
+      SDK is the Agones-compatible API the sidecar serves to the game server
+       container over localhost gRPC (:9357).
+
+       This is the public surface for game developers; it is intentionally
+       decoupled from the sidecar ⇄ arena-api transport, which is defined in
+       arena/gateway/v1/sdk_gateway.proto. The sidecar has no direct access to
+       DynamoDB, Redis, or the ECS API.

@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package arena.gateway.v1;
+
+import "arena/v1/gameserver.proto";
+
+option go_package = "github.com/moepig/arena/gen/arena/gateway/v1;gatewayv1";
+
+// SDKGateway is the internal protocol between the SDK sidecar and arena-api
+// (DESIGN_v2 §4.3). It is not exposed to game developers; the public SDK
+// surface (arena/v1/sdk.proto) stays stable while this protocol evolves.
+service SDKGateway {
+  // Session is the single multiplexed bidirectional stream a sidecar opens
+  // at startup. On disconnect the sidecar reconnects with exponential
+  // backoff; missed pushes are recovered by returning the current state
+  // from DynamoDB on reconnect.
+  rpc Session(stream SidecarMessage) returns (stream GatewayMessage);
+}
+
+message SidecarMessage {
+  // Declared in the first message (injected via Task metadata).
+  string gameserver_id = 1;
+
+  // ECS Task ARN, presented in the first message. The gateway verifies it
+  // against DescribeTasks "startedBy" to prevent gameserver_id spoofing
+  // (DESIGN_v2 §6.4.3).
+  string task_arn = 2;
+
+  oneof msg {
+    Heartbeat heartbeat = 3; // sent every 10 seconds
+    ReadyRequest ready = 4;
+    ShutdownRequest shutdown = 5;
+    SetMetadataRequest set_metadata = 6;
+    ReserveRequest reserve = 7;
+    SelfAllocateRequest allocate = 8;
+    CountersSync counters = 9;
+  }
+}
+
+// CountersSync carries the full Counter/List state of the game server
+// (DESIGN_v3 §5.1). The source of truth is the game process; the sidecar
+// sends the complete state on every change and re-sends it periodically
+// (30s) and on reconnect, so the Redis copy is rebuildable derived data.
+message CountersSync {
+  map<string, CounterState> counters = 1;
+  map<string, ListState> lists = 2;
+}
+
+message CounterState {
+  int64 count = 1;
+  int64 capacity = 2;
+}
+
+message ListState {
+  int64 capacity = 1;
+  repeated string values = 2;
+}
+
+message GatewayMessage {
+  oneof msg {
+    // Push for WatchGameServer, including allocation notifications.
+    arena.v1.GameServer state = 1;
+    Ack ack = 2;
+  }
+}
+
+// Heartbeat is written to Redis with a TTL only — never to DynamoDB.
+message Heartbeat {}
+
+// ReadyRequest requests a transition to Ready. From Starting this is the
+// initial Ready; from Allocated it returns the server to the pool for reuse
+// (releasing its active allocations); from Reserved it ends the reservation
+// early (DESIGN_v3 §2.1, §2.3). The gateway commits the transition in
+// DynamoDB before adding the server to the Redis ready pool.
+message ReadyRequest {}
+
+// ReserveRequest moves a Ready server to Reserved for `seconds` (0 = until
+// the SDK calls Ready/Allocate/Shutdown). Extending an existing reservation
+// is allowed (DESIGN_v3 §2.1).
+message ReserveRequest {
+  int64 seconds = 1;
+}
+
+// SelfAllocateRequest lets the game server allocate itself from
+// Ready/Reserved (DESIGN_v3 §2.2). The gateway synthesizes the Allocation
+// record with metadata "arena.dev/self-allocated": "true".
+message SelfAllocateRequest {}
+
+// ShutdownRequest signals graceful shutdown of the game server. Also used
+// for infrastructure-initiated drains (Spot interruption SIGTERM —
+// DESIGN_v3 §6.3), distinguished by reason.
+message ShutdownRequest {
+  // Optional cause for events/logs, e.g. "spot-interruption".
+  string reason = 1;
+}
+
+message SetMetadataRequest {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_LABEL = 1;
+    KIND_ANNOTATION = 2;
+  }
+
+  Kind kind = 1;
+  string key = 2;
+  string value = 3;
+}
+
+message Ack {}
