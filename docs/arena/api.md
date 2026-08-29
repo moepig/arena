@@ -1,160 +1,161 @@
-# API リファレンス
+# コントロールプレーン API
 
-**proto が唯一の API 定義**です(`api/proto/arena/v1/`)。connect-go により同一ハンドラが
-gRPC / gRPC-Web / JSON(Connect protocol)を 1 ポートで話します。OpenAPI ドキュメントは
-`buf generate` の生成物(`gen/openapi/arena.v1.yaml`)であり、手書き管理しません。
+本ドキュメントは、`arena-api` が公開する RPC、共通規則、認証と認可、エラー処理を説明する。各 message の完全な schema は `api/proto/arena/v1` が定義する。
 
-- エンドポイント: `POST /arena.v1.<Service>/<Method>`(JSON は `Content-Type: application/json`)
-- ページングは `page_size` / `page_token` 方式
-- namespace 省略時は `default`
+## Transport
+
+`arena-api` は Connect、gRPC、gRPC-Web を同一 port で提供する。平文 endpoint では h2c を使用する。Connect JSON の procedure path は `/arena.v1.<Service>/<Method>` である。
+
+生成済み OpenAPI document は `gen/openapi/arena.v1.yaml` である。このファイルは `buf generate` の出力であり、直接編集しないこと。
+
+Namespace を持つ request で値を省略した場合は `default` を使用する。List API の page size は既定 100、上限 1000 である。次ページには response の `next_page_token` を渡す。
 
 ## FleetService
 
-| RPC | 説明 |
-|-----|------|
-| `CreateFleet` | Fleet 作成。(namespace, name) 重複は `ALREADY_EXISTS` |
-| `GetFleet` / `ListFleets` | 参照(namespace 単位) |
-| `UpdateFleet` | spec 全置換。`version` 必須(楽観ロック、競合は `ABORTED`) |
-| `DeleteFleet` | 削除。稼働中 GameServer が居る間は `FAILED_PRECONDITION`(先に 0 台へスケール) |
-| `ScaleFleet` | replicas 直接指定。autoscaling 有効時は `FAILED_PRECONDITION` |
-| `ApplyFleet` | 宣言的 upsert(arenactl の実体)。下記参照 |
+Fleet を扱う RPC を、以下に示す。
 
-### ApplyFleet
+| RPC | 振る舞い |
+| --- | --- |
+| `CreateFleet` | Fleet を新規作成する |
+| `GetFleet` | namespace と name で Fleet を取得する |
+| `ListFleets` | namespace 内の Fleet を列挙する |
+| `UpdateFleet` | `version` を用いる楽観ロックで labels と spec を置換する |
+| `DeleteFleet` | active GameServer が存在しない Fleet を削除する |
+| `ScaleFleet` | autoscaling が無効な Fleet の希望台数を変更する |
+| `ApplyFleet` | namespace と name を key に作成または更新する |
 
-(namespace, name) で同定し、無ければ作成、あれば spec を全置換する。
-version はサーバー側で read-modify-write + 内部リトライするためクライアントは扱わない。
+`UpdateFleet` の `version` が保存済みの値と異なる場合は `ABORTED` となる。`ApplyFleet` は最大 3 回の read-modify-write を内部で試行するため、client は version を指定しない。
 
-- `dry_run: true` — 書き込まず、実行した場合の action(CREATED / UPDATED / UNCHANGED)、
-  **正規化済み spec**、現状との構造化 diff を返す。クライアント側で正規化を再実装しない
-  (デフォルト補完やフィールド順序の揺れで偽差分が出るのを防ぐ)
-- **replicas の所有権**: `autoscaling.enabled: true` の spec が replicas を明示すると
-  `FAILED_PRECONDITION`。省略時はサーバーの現在値を維持(autoscaler の決定を巻き戻さない)
-- template 変更時は `generation` が +1 され、`spec_hash` が更新される
+`ApplyFleet` の `dry_run` は書き込みを行わず、作成、更新、変更なしの action、正規化済み spec、現在との差分を返す。Autoscaling が有効な spec に `replicas` を含めると `FAILED_PRECONDITION` となる。Autoscaler が希望台数を所有するためである。
+
+Template が変化すると `generation` が増加し、`spec_hash` が更新される。
+
+## GameServerService
+
+GameServer を扱う RPC を、以下に示す。
+
+| RPC | 振る舞い |
+| --- | --- |
+| `GetGameServer` | GameServer ID で取得する |
+| `ListGameServers` | namespace、Fleet、state で絞り込んで列挙する。`fleet_name` は必須 |
+| `DeleteGameServer` | 対象を drain または unhealthy にして、controller に停止させる |
+
+`DeleteGameServer` は Fleet の希望台数を変更しない。Controller は削除した GameServer の代替を起動する。
 
 ## AllocationService
 
-| RPC | 説明 |
-|-----|------|
-| `Allocate` | Ready サーバーを 1 台割り当てる。`idempotency_key` **必須** |
-| `Release` | 割り当てを解放。サーバーは Ready へ戻り再利用される |
-| `GetAllocation` | 割り当ての参照 |
+Allocation を扱う RPC を、以下に示す。
 
-### Allocate の例
+| RPC | 振る舞い |
+| --- | --- |
+| `Allocate` | Ready GameServer を割り当てる |
+| `Release` | Allocation を解放する |
+| `GetAllocation` | Allocation ID で記録を取得する |
 
-```json
-POST /arena.v1.AllocationService/Allocate
+`Allocate` では `idempotency_key` が必須である。`fleet_name` と `fleet_selector` は一方だけを指定する必要がある。同じ `idempotency_key` の再送は同じ Allocation に収束する。
+
+単一 Fleet から割り当てる Connect JSON request を、以下に示す。
+
+```http
+POST /arena.v1.AllocationService/Allocate HTTP/1.1
+Content-Type: application/json
+
 {
-  "idempotencyKey": "match-12345-attempt-1",
-  "fleetName": "shooter-jp",
+  "idempotencyKey": "match-123-attempt-1",
   "namespace": "default",
-  "selectors": { "matchLabels": { "version": "v1.2.3" } },
-  "metadata": { "sessionId": "match-12345" }
-}
-
-→ 200
-{
-  "allocationId": "…",
-  "gameServer": {
-    "id": "…",
-    "state": "STATE_ALLOCATED",
-    "address": "203.0.113.24",
-    "ports": [{ "name": "game", "port": 7777, "protocol": "PROTOCOL_UDP" }]
+  "fleetName": "shooter-jp",
+  "metadata": {
+    "sessionId": "match-123"
+  },
+  "gameServerMetadata": {
+    "annotations": {
+      "session": "match-123"
+    }
   }
 }
 ```
 
-- **同一 `idempotencyKey` の再送は同一 Allocation に収束する**(タイムアウト後の再送が
-  二重割り当てにならない)。クライアントはエラー時に同じキーで安全にリトライできる
-- `selectors` なしが高速パス。あり(ラベル一致)はスローパス
-- クライアントはレスポンスの `address:port` に**直接**接続する(LB を経由しない)
+候補選択の指定を、以下にまとめる。
 
-## GameServerService
+| Field | 性質 |
+| --- | --- |
+| `selectors[]` | 先頭から順に試す fallback chain |
+| `match_labels` | 全 entry の完全一致 |
+| `match_fields` | `id` または `spec_hash` の完全一致 |
+| `required[]` | Equals、NotEquals、In、NotIn、Exists、NotExists による必須条件 |
+| `preferred[]` | 一致数が多い候補を優先する条件 |
+| `fleet_selector` | Fleet label で最大 8 Fleet を選ぶ条件 |
+| `counter_filters[]` | Counter の available capacity による必須条件 |
+| `priorities[]` | Counter の available capacity による並び順 |
+| `allow_allocated` | 条件に合う Allocated GameServer への追加 Allocation |
 
-| RPC | 説明 |
-|-----|------|
-| `GetGameServer` | ID で参照 |
-| `ListGameServers` | fleet 単位で列挙(state フィルタ可、ページング) |
+`allow_allocated` には 1 個以上の `counter_filters` が必要である。追加 Allocation を作成しても GameServer は Allocated のままである。
 
-## エラーモデル
+## EventService
 
-gRPC ステータスコードに統一(Connect が JSON へも同一セマンティクスで写像):
+`ListEvents` は Fleet または GameServer の event を新しい順に返す。`resource_type` は `fleet` または `gameserver`、`resource_id` は対象の内部 ID である。Limit は既定 50、上限 200 である。
 
-| 状況 | コード | クライアントの対応 |
-|------|-------|------------------|
-| Ready 在庫なし | `RESOURCE_EXHAUSTED` | バックオフ再送(冪等キーで安全) |
-| claim 競合の連続 | `ABORTED` | 再送 |
-| バージョン競合(UpdateFleet) | `ABORTED` | 再取得して再送 |
-| autoscaling 有効時の Scale / replicas 指定 Apply | `FAILED_PRECONDITION` | min/max の変更で意図を表現 |
-| 稼働中 Fleet の削除 | `FAILED_PRECONDITION` | 先に scale 0 |
-| 認証なし・無効トークン | `UNAUTHENTICATED` | トークン再取得 |
-| 権限なし | `PERMISSION_DENIED` | — |
+Event は DynamoDB TTL により 7 日後に削除される。Event の書き込みは best effort であり、状態判定には使用しない。
 
-## 認証・認可
+## 認証
 
-呼び出し元は **AWS IAM を唯一のアイデンティティ基盤**とします。独自のユーザー DB・
-パスワード・長命 API キーはありません。`-authz-file`(と `-server-id`)を与えない場合、
-認証は無効です(ローカル開発専用)。
+`arena-api` に `-authz-file` を指定すると、control-plane RPC に IAM 認証を適用する。未指定の場合は認証を無効にする。
 
-### 認証: SigV4 presigned STS トークン
+> [!WARNING]
+> `-authz-file` を指定しない構成を、信頼できない network へ公開してはいけない。
 
-aws-iam-authenticator / Vault AWS auth と同じ方式です:
+Token は、`sts:GetCallerIdentity` の SigV4 presigned URL を URL-safe Base64 で符号化し、`arena-v1.` prefix を付けた bearer token である。Presign 時には `x-arena-server` header を署名対象へ含める。Token の最大有効期間は 15 分である。
 
-```
-1. クライアントは自分の AWS クレデンシャルで sts:GetCallerIdentity を presign し、
-   URL を Bearer トークンとして付与する
-     Authorization: Bearer arena-v1.<base64(presigned URL)>
-   presign 時に x-arena-server ヘッダ(= API のホスト名)を署名に含める
-2. arena-api はトークンを検証(STS エンドポイント・Action・有効期限 ≦15 分・
-   x-arena-server の署名束縛)後、URL を実行して IAM プリンシパル ARN を得る
-3. 検証結果はトークン失効までメモリキャッシュ(ホットパスで毎回 STS を呼ばない)
+Authorization header の形式を、以下に示す。
+
+```http
+Authorization: Bearer arena-v1.<base64url-presigned-url>
 ```
 
-- 秘密の配布・ローテーションが不要。失効・剥奪は IAM 側の仕組みがそのまま効く
-- トークンはホスト名に署名で束縛されるため他サービスへ流用できない
+`-server-id` は `x-arena-server` の値であり、`-authz-file` と同時に指定する必要がある。`arenactl -auth iam` は server URL の host へ token を自動的に束縛する。
 
-| 呼び出し元 | クレデンシャル |
-|-----------|--------------|
-| arenactl(人間) | AWS SSO / プロファイル(標準チェーン)。`-auth iam` で自動生成 |
-| CI(GitOps) | GitHub Actions OIDC → apply 用ロールを Assume |
-| Matchmaker | ECS タスクロール(トークンは ~10 分キャッシュして再利用) |
+SDK Gateway はこの interceptor の対象外である。`-cluster` が設定されている場合は、ECS Task ARN と `startedBy` による sidecar identity 検証を使用する。
 
-### 認可: ロールマッピング(RBAC-lite)
+## 認可
 
-IAM ARN を arena 内ロールへマッピングし、RPC × namespace で認可します。
-assumed-role のセッション ARN は IAM ロール ARN に正規化して照合されます。
+認可 file は IAM principal と Arena role の対応を YAML で定義する。Assumed-role session ARN は対応する IAM role ARN へ正規化する。Namespace は完全一致または末尾 `*` の prefix 一致で制限できる。
+
+認可 file の例を、以下に示す。
 
 ```yaml
-# 例: authz bindings(SSM /arena/{env}/authz またはファイル。1 分間隔でリロード)
 bindings:
-  - principal: "arn:aws:iam::123456789012:role/arena-admin"
-    role: admin
-  - principal: "arn:aws:iam::123456789012:role/arena-ci-apply"
+  - principal: arn:aws:iam::123456789012:role/arena-fleet-editor
     role: fleet-editor
-    namespaces: ["default", "shooter-*"]     # 前方一致ワイルドカード可
-  - principal: "arn:aws:iam::123456789012:role/matchmaker-prod"
+    namespaces:
+      - shooter-*
+  - principal: arn:aws:iam::123456789012:role/arena-matchmaker
     role: allocator
-    namespaces: ["shooter-*"]
+    namespaces:
+      - default
 ```
 
-| ロール | 許可される RPC |
-|-------|---------------|
-| `admin` | すべて |
-| `fleet-editor` | Fleet CRUD / Apply / Scale + 参照系 |
-| `allocator` | Allocate / Release + 参照系 |
-| `viewer` | 参照系のみ |
+Role と許可範囲を、以下にまとめる。
 
-変更系 RPC は認証済みプリンシパル ARN 付きで監査ログ(構造化ログ)に記録されます。
+| Role | 許可される RPC |
+| --- | --- |
+| `viewer` | Fleet と GameServer の参照、Allocation の参照 |
+| `allocator` | `viewer` の範囲、Allocation の作成と解放 |
+| `fleet-editor` | `viewer` の範囲、Fleet の作成、更新、削除、scale、apply |
+| `admin` | SDK Gateway を除くすべての control-plane RPC |
 
-### Sidecar の認証(別系統)
+現行の権限定義では、`ListEvents` と `DeleteGameServer` は `admin` のみが呼び出せる。認可 file は 1 分ごとに再読込する。再読込に失敗した場合は直前の有効な設定を維持する。
 
-SDK Gateway のストリームは IAM トークンではなく **Task ARN 突合**で認証します:
-sidecar が ECS Task メタデータから得た Task ARN を提示し、gateway が
-`ecs:DescribeTasks` の `startedBy == "arena:{gameserver_id}"` と照合して
-gameserver_id のなりすましを防ぎます。GameServer Task に IAM の API 権限は一切不要です。
+## エラー
 
-## SDK Gateway(内部プロトコル)
+代表的な Connect と gRPC status code を、以下にまとめる。
 
-`arena/gateway/v1/sdk_gateway.proto` は sidecar ⇄ arena-api の**内部**プロトコルであり、
-ゲーム開発者向けの公開 SDK(`arena/v1/sdk.proto`)とは分離されています。
-内部プロトコルの変更はゲームサーバーイメージに波及しません。
-ゲームサーバーからの利用方法は [sdk.md](sdk.md) を参照してください。
+| Code | 条件 | 対応 |
+| --- | --- | --- |
+| `INVALID_ARGUMENT` | 必須 field の不足、selector や spec の不正 | Request を修正する |
+| `NOT_FOUND` | 対象 resource が存在しない | ID、namespace、name を確認する |
+| `ALREADY_EXISTS` | Fleet の重複作成 | 取得または apply を使用する |
+| `RESOURCE_EXHAUSTED` | 条件に合う割り当て候補がない | 同じ idempotency key で backoff 後に再送する |
+| `ABORTED` | Version 競合または Allocation claim 競合 | 再取得後に再送する |
+| `FAILED_PRECONDITION` | Autoscaling 中の scale、active GameServer がある Fleet の削除 | 前提状態を解消する |
+| `UNAUTHENTICATED` | Token がない、無効、期限切れ | Token を再生成する |
+| `PERMISSION_DENIED` | Role または namespace の許可がない | 認可 binding を確認する |

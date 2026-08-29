@@ -1,107 +1,135 @@
-# Agones からの移行ガイド
+# Agones からの移行
 
-arena は [Agones](https://agones.dev/) が Kubernetes 上で提供する機能を、
-Kubernetes クラスタなしで **AWS ECS 上に**実現するシステムです。本書は
-Agones を使っているゲームサーバー・マッチメイカーを arena へ移行する際の
-対応表と、既知の差分をまとめたものです。
+本ドキュメントは、Agones 上の専用ゲームサーバーを Arena へ移行する際の概念対応、SDK の互換範囲、設計差分、移行手順を説明する。
 
-## 1. 概念の対応表
+## 概念対応
 
-| Agones | arena | 備考 |
-|--------|-------|------|
-| Kubernetes クラスタ | ECS クラスタ(Fargate / Fargate Spot / EC2) | ノード管理が要らない場合は Fargate を推奨 |
-| `Fleet` CRD | `arena.v1.Fleet`(DynamoDB レコード) | `arenactl apply -f fleet.yaml` で宣言的に管理(kubectl 相当) |
-| `GameServer` CRD | `arena.v1.GameServer`(DynamoDB レコード) | 個々の CRD ではなく Fleet 経由でのみ生成される(単発 GameServer は非対応) |
-| `GameServerSet` | なし | spec_hash によるローリングアップデートの世代管理が同じ役割を、中間リソースなしで果たす |
-| `FleetAutoscaler` CRD | `Fleet.spec.autoscaling` | Buffer / Schedule / Webhook / Counter / Chain の全ポリシータイプに対応 |
-| `GameServerAllocation` API | `AllocationService.Allocate` RPC | フィールドはほぼ 1:1(§2 参照) |
-| `GameServerAllocationPolicy` CRD + allocator service | `arena-router`(`internal/router` / `cmd/arena-router`) | mTLS の代わりに IAM 認証。静的ポリシーファイルで `{region, endpoint, priority, weight}` を宣言 |
-| SDK sidecar(`agones.dev/sdk`) | `arena-sidecar` | **ワイヤ互換**(§3 参照)。公式 SDK をそのまま使える |
-| Counters/Lists | Counters/Lists | ほぼ同一設計。SoT がゲームプロセス自身である点も同じ |
-| `kubectl apply/get/describe/delete` | `arenactl apply/get/describe/delete` | ほぼ同じ体験。CRD ではなく arena 独自の flat YAML(ECS 語彙) |
-| RBAC(RoleBinding 等) | IAM ベースの authn/z | K8s RBAC の API リソース化はしていない(§7) |
-| Prometheus ServiceMonitor | `arena-api` / `arena-controller -metrics-listen` の `/metrics` | 素の OpenMetrics エンドポイント。メトリクス一覧は [arena/monitoring.md](arena/monitoring.md) を参照 |
+主要な resource と機能の対応を、以下にまとめる。
 
-## 2. Allocation の移行
+| Agones | Arena | 差分 |
+| --- | --- | --- |
+| Kubernetes cluster | ECS cluster | Kubernetes API と node resource は使用しない |
+| Fleet CRD | Arena Fleet | Protobuf API と ECS 形式の YAML manifest で管理する |
+| GameServer CRD | Arena GameServer | Fleet からのみ作成する |
+| GameServerSet | `generation` と `spec_hash` | 中間 resource を公開しない |
+| GameServerAllocation | AllocationService | `idempotency_key` が必須 |
+| FleetAutoscaler | `Fleet.spec.autoscaling` | Fleet 内の設定として保持する |
+| Agones SDK sidecar | `arena-sidecar` | gRPC service 名と主要 RPC、REST route を実装する |
+| Counters と Lists | Agones beta 互換 service | Sidecar memory を一次状態とする |
+| Kubernetes RBAC | IAM token と Arena role | Namespace pattern を file で設定する |
+| Multi-cluster allocation | `arena-router` | 静的な region policy で転送する |
 
-`GameServerAllocation` のリクエスト形は `AllocateRequest` にほぼそのまま持ち込めます。
+## SDK 互換範囲
 
-| Agones `GameServerAllocation.spec` | arena `AllocateRequest` | 対応状況 |
-|---|---|---|
-| `selectors[]`(label/field/counter/list selector のフォールバック列) | `selectors[]`(`match_labels` / `match_fields` / `required` / `preferred`) | ✅ 先頭から順に試すフォールバック |
-| `selectors[].gameServerState` (Ready/Allocated) | `allow_allocated`(bool) + `counter_filters` | ✅ Allocated を対象にする場合は高密度再割り当て(§5.3)として実装。要 `counter_filters` |
-| `selectors[].counters` / `lists` フィルタ | `counter_filters[]` | ✅ |
-| `priorities[]` | `priorities[]`(Counter の available capacity 昇順/降順) | ✅ |
-| `metadata.labels` / `.annotations` | `game_server_metadata.labels` / `.annotations` | ✅ 割り当てと同一トランザクションで GameServer に反映 |
-| Fleet 名の直接指定 | `fleet_name` | ✅(namespace + name) |
-| ラベルによる複数 Fleet 横断 | `fleet_selector` | ✅ 最大 8 Fleet、60 秒キャッシュ、`fleet_name` と排他 |
-| マルチクラスタ(`GameServerAllocationPolicy`) | arena-router 経由でのリクエスト転送 | ✅(§1 の対応表参照) |
+`arena-sidecar` は `agones.dev.sdk.SDK` と `agones.dev.sdk.beta.SDK` の protobuf service を localhost port 9357 で提供する。REST 互換 route は port 9358 で提供する。
 
-Idempotency: Agones にはリクエストの冪等キーという概念自体がありませんが、
-arena の `AllocateRequest.idempotency_key` は**必須**です。マッチメイカーの
-リトライ処理を持ち込む際は、リトライごとに同じキーを再送するようにしてください
-(同じ結果が返るだけで、二重に割り当てられることはありません)。
+実装済みの stable SDK RPC を、以下に示す。
 
-## 3. SDK の移行(公式クライアントはそのまま使える)
+- Ready
+- Allocate
+- Shutdown
+- Health
+- GetGameServer
+- WatchGameServer
+- SetLabel
+- SetAnnotation
+- Reserve
 
-**これが最も重要な点です**: `arena-sidecar` は arena 独自の SDK に加えて、
-本物の `agones.dev.sdk.SDK` サービスを `:9357`(gRPC)で、`agones.dev.sdk.beta.SDK`
-(Counters/Lists)も同じポートで提供します。さらに `:9358` に手書きの REST
-(HTTP+JSON)互換エンドポイントもあります。
+実装済みの beta SDK RPC を、以下に示す。
 
-つまり **Unity / Unreal / C# / C++ / Rust / Node など公式 Agones SDK を
-コード変更なしに接続できます**。ゲームサーバー側からは Kubernetes で動く
-Agones の sidecar と区別がつきません。
+- GetCounter
+- UpdateCounter
+- GetList
+- UpdateList
+- AddListValue
+- RemoveListValue
 
-| 環境変数 | 意味 |
-|---------|------|
-| `AGONES_SDK_GRPC_PORT` | 公式 SDK が読む gRPC ポート。arena-sidecar もこれを尊重(既定 9357) |
-| `AGONES_SDK_HTTP_PORT` | 公式 SDK 実装の一部が読む REST ポート。arena-sidecar もこれを尊重(既定 9358) |
+Player Tracking RPC は実装しない。GameServer の Agones state に直接対応しない Arena state は、Scheduled、Shutdown、Unhealthy など最も近い Agones state 名へ変換する。
 
-移行時にゲーム側のコードを変える必要があるのは、次の 2 点だけです:
+> [!IMPORTANT]
+> リポジトリのテストは Arena 内の生成 client と handler の互換性を検証する。各言語の公式 Agones SDK と実 ECS 環境を組み合わせた相互運用試験は、導入側で実施する必要がある。
 
-1. **`GameServer.status.address` の意味**: Agones では通常ロードバランサ/NodePort
-   経由ですが、arena は**クライアントが直接 IP:Port に接続する**モデルです
-   (`docs/arena/architecture.md` 参照)。ロードバランサを前提にしたコードが
-   あれば取り除いてください
-2. **ECS 固有の情報**: `arena.dev/gameserver-id` / `arena.dev/fleet-id` の
-   annotation で、GameServer の ECS 上の素性を確認できます(Kubernetes の
-   `metadata.name`/`namespace` に相当する情報が同じ形で載っています)
+## 接続先
 
-Counters/Lists を使っている場合は「Counter の暗黙的な作成」に注意してください —
-arena は Fleet spec に Counter を事前宣言する仕組みを持たないため、初回
-`UpdateCounter` 呼び出しの順序に依存する初期化ロジックがあれば見直しが必要です。
+公式 Agones SDK が参照する環境変数を Arena sidecar も使用する。
 
-## 4. Fleet 定義の移行
+| 環境変数 | 既定値 |
+| --- | --- |
+| `AGONES_SDK_GRPC_PORT` | `9357` |
+| `AGONES_SDK_HTTP_PORT` | `9358` |
 
-Agones の Fleet CRD(YAML)と arena の `arenactl` manifest は語彙が異なります
-(Kubernetes Pod template 風 vs. ECS タスク定義風)。フィールド単位の詳細は
-[arenactl/manifest.md](arenactl/manifest.md) を参照してください。要点:
+Game process と sidecar を同じ ECS Task へ配置し、localhost で接続する。Game process から DynamoDB、Redis、Arena の control-plane credential は不要である。
 
-- ローリングアップデート戦略(`maxSurge`/`maxUnavailable`/`Recreate`/
-  `drainTimeoutSeconds`)、`allocationOverflow`、autoscaler(Buffer/Schedule/
-  Webhook/Counter/Chain)、複数コンテナ・volumes・secrets・command/args・
-  Capacity Provider・ネットワークオーバーライドは、いずれも
-  `arenactl apply`/`get` の YAML からそのまま宣言・エクスポートできます
-  (詳細は [arenactl/manifest.md](arenactl/manifest.md) を参照)
+## Allocation の差分
 
-## 5. 意図的に対応しない機能
+Arena の Allocation request には再送時の一意な `idempotency_key` が必要である。同一 key は同じ Allocation ID へ変換される。Matchmaker は timeout または一時 error の再送でも同じ key を使用する必要がある。
 
-以下は Agones にあって arena が意図的に持たない機能です:
+Arena は `fleet_name` または Fleet label の `fleet_selector` で対象 Fleet を選ぶ。GameServer の label、`id`、`spec_hash`、Counter capacity を selector として使用できる。Preferred selector は候補の順序だけを変え、候補を除外しない。
 
-- `GameServerSet` 相当の中間リソース(spec_hash 世代管理が同じ問題を解く)
-- Player Tracking(alpha)— Agones 自身が Counters/Lists への移行を推奨しており、対応する SDK RPC は arena でも Counters/Lists 経由になる
-- Dynamic port policy(awsvpc は Task 専有 ENI でポート衝突がないため不要)
-- Feature Gates 機構、K8s RBAC の API リソース化(需要が出るまで見送り)
-- Fleet に属さない単発 GameServer
+Allocation response の `address` と `ports` は、game client が直接接続する宛先である。Agones 環境で NodePort、LoadBalancer、Ingress、独自 proxy を前提にしていた場合は接続処理を変更する必要がある。
 
-## 6. 移行前のチェックリスト
+## Fleet manifest の差分
 
-- [ ] マッチメイカーの `AllocateRequest` に `idempotency_key` を必ず付与する
-- [ ] クライアントの接続方式がロードバランサ前提でないか確認する(直結モデルへの対応)
-- [ ] Counter/List を使うゲームは、Fleet 側の事前宣言なしに動く初期化順序になっているか確認する
-- [ ] マルチリージョン運用が必要な場合は `arena-router` の設定(`{region, endpoint, priority, weight}`)を用意する
-- [ ] ノード更新・Spot 中断への耐性が必要なゲームは `drainGraceSeconds` / SIGTERM ハンドリングを実装する(sidecar が `Shutdown` 相当の通知を出す)
-- [ ] 公式 Agones SDK を使う場合、`AGONES_SDK_GRPC_PORT` / `AGONES_SDK_HTTP_PORT` が正しく渡っているか確認する
-- [x] `api/proto/agones/**/*.proto` のフィールド番号は公式 agones.dev リポジトリ(`main` ブランチ)と突き合わせ済み(2026-07-18)。ただし実 SDK クライアントとのバイト列レベルの相互運用は実機未検証
-- [ ] 実 AWS 環境での負荷試験・E2E 検証を別途実施する(本リポジトリの自動テストは DynamoDB Local / Valkey 上の testcontainers までで、実 AWS では未検証)
+Arena manifest は Kubernetes object ではなく、ECS Task Definition と Service に近い field 名を持つ。`apiVersion`、`kind`、Pod template、container port policy などをそのまま移植できない。
+
+変換時の主な対応は次のとおりである。
+
+| Agones Fleet | Arena manifest |
+| --- | --- |
+| `metadata.name` | `name` |
+| `metadata.namespace` | `namespace` |
+| `spec.replicas` | `desiredCount` |
+| `spec.template.metadata.labels` | `taskDefinition.tags` |
+| Pod container image | `taskDefinition.containerDefinitions[].image` |
+| Container port | `portMappings[]` |
+| GameServer health | Game container の `healthCheck` |
+| RollingUpdate | `strategy.rollingUpdate` |
+| Allocation overflow | `allocationOverflow` |
+
+完全な schema は、[arenactl/manifest.md](arenactl/manifest.md) を参照。
+
+## Lifecycle の差分
+
+Arena の GameServer は Scheduled、Starting、Ready、Reserved、Allocated、Draining、Unhealthy、Terminated を使用する。ECS Task の RUNNING event で Starting へ移り、SDK `Ready` で Ready へ移る。
+
+Allocated から SDK `Ready` を呼ぶと Allocation を解放して同じ Task を再利用する。SDK `Shutdown` は Draining へ移し、controller が ECS Task を停止する。
+
+Arena の sidecar は最初の SDK `Health` 呼び出しまで upstream heartbeat を送る。最初の呼び出し後に game process の Health が止まると upstream heartbeat も停止する。この挙動を前提に、game loop から継続して Health を呼ぶ必要がある。
+
+## Counter と List の差分
+
+Counter と List は Fleet template で事前宣言しない。Game process が SDK で作成または更新する。Sidecar の再起動では memory 上の値が失われるため、起動時に必要な capacity と value を設定する必要がある。
+
+Arena は Counter を Allocation filter、priority、同一 GameServer への追加 Allocation、Fleet autoscaling に使用できる。List は sidecar と Redis へ同期するが、現行 Allocation API の filter には使用しない。
+
+## 運用の差分
+
+Kubernetes event に相当する履歴は EventService が提供する。保持期間は 7 日であり、best effort である。Log は CloudWatch Logs、metric は EMF と OpenMetrics を使用する。
+
+Kubernetes RBAC は使用しない。Control-plane API は presigned STS token で IAM principal を確認し、YAML binding の `admin`、`fleet-editor`、`allocator`、`viewer` role へ対応付ける。
+
+## 移行手順
+
+移行は次の順序で行う。
+
+1. GameServer の SDK 呼び出しを一覧化し、Arena の互換範囲に含まれることを確認する。
+2. Game client の接続処理を、Allocation response の address と port への直接接続へ対応させる。
+3. Fleet CRD を Arena manifest へ変換し、`arenactl diff` で server-side validation を実行する。
+4. Game process の起動時に Counter と List を初期化し、Health を継続送信する。
+5. Matchmaker の Allocation に安定した `idempotency_key` を追加する。
+6. 検証 Fleet で Ready、Allocation、WatchGameServer、Release または Ready、Shutdown を確認する。
+7. Spot interruption、Redis restart、controller failover、SDK Gateway reconnect を検証する。
+8. 負荷試験で Allocation latency、Ready buffer、ECS Task 起動 rate を確認する。
+
+## 非対応または制約
+
+移行判断に影響する現行の制約は次のとおりである。
+
+- Fleet に属さない単一 GameServer の作成 API はない
+- Player Tracking はない
+- Manifest は Passthrough port と TCPUDP を表現しない
+- List による Allocation filter はない
+- `arena-router` は Authorization header を region endpoint へ転送しない
+- Terraform サンプルは本番環境へそのまま適用できない
+
+AWS 配置の制約は、[arena/aws-resources.md](arena/aws-resources.md) を参照。

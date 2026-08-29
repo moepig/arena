@@ -1,103 +1,107 @@
-# テスト戦略
+# テスト
 
-## 単体テスト vs 統合テスト
+本ドキュメントは、Arena の unit test と integration test の範囲、実行方法、失敗時の確認を説明する。
 
-| | 単体テスト(`make test`) | 統合テスト(`make test-integration`) |
-|---|---|---|
-| 対象 | `internal/*`、`cmd/arenactl`、`pkg/sdk` | `test/integration/`(build tag `integration`) |
-| バックエンド | フェイク実装(`fake*` struct)/ miniredis | testcontainers が起動する実 DynamoDB Local / Valkey / floci |
-| 実行速度 | 数秒 | 数十秒(コンテナ起動込み) |
-| Docker | 不要 | 必要(daemon 起動済みであること) |
-| コマンド | `go test ./...` | `go test -tags integration -count=1 -race -timeout 10m ./test/integration/...` |
-| いつ書く | ロジックそのものの正しさ(状態遷移、フィルタ、計算式など) | DynamoDB の条件付き書き込み/トランザクションの原子性、GSI クエリ、Redis の実際のコマンド挙動、複数プロセス間の競合(リーダー選出・シャーディング)など、フェイクでは検証できない実バックエンド固有の振る舞い |
+## テストの分類
 
-```console
-$ make test                                        # 単体テスト一式
-$ go test ./internal/allocation/... -run TestFoo -v # 特定パッケージ/テストだけ
-$ make test-integration                             # 統合テスト一式(-race 込み)
-```
+Test suite の性質を、以下にまとめる。
 
-## フェイクの流儀
+| 種別 | Command | Docker | 主な対象 |
+| --- | --- | --- | --- |
+| Unit test | `go test ./...` または `make test` | 不要 | Package logic、in-memory fake、miniredis、HTTP handler |
+| Integration test | `make test-integration` | 必要 | DynamoDB Local、Valkey、floci を用いる backend behavior |
 
-`internal/controller`、`internal/allocation`、`internal/gateway`、
-`internal/api` などは、それぞれのテストファイルで `fakeCtrlStore` /
-`fakeStore` / `fakePool` のような in-memory フェイクを定義し、本物の
-`Store`/`Pool` インタフェースを実装しています。フェイクは:
+Integration test file には `integration` build tag があるため、通常の `go test ./...` には含まれない。
 
-- 実際の DynamoDB と同じ条件(state 遷移の許可・version 一致)をメモリ上の
-  map で模倣する(`store.ErrConditionFailed` 等、本物と同じエラーを返す)
-- 複数テストファイルで共有されることが多い(例:
-  `internal/controller/controller_test.go` の `fakeCtrlStore` は
-  `reconcile_v3_test.go`、`autoscale_v3_test.go` 等からも使われる)
-- 別 goroutine から並行アクセスされる可能性がある箇所(例: shard 関連の
-  テストが `leadShard` を直接 goroutine で回す)では、フェイク自身に
-  `sync.Mutex` を足して race を防ぐ(`fakeLauncher.launchedCount()` のように、
-  安全な読み出し専用メソッドを用意するパターンを使う)
+## Unit test
 
-新しいフェイクを書くときは、本物の実装がどのエラー(`store.ErrConditionFailed`、
-`store.ErrVersionConflict` 等)をどの条件で返すかを踏襲してください。フェイクが
-本物より緩い条件を許してしまうと、フェイク上のテストは通るのに実際の
-DynamoDB では失敗する、という乖離が起きます(この手のギャップは
-`test/integration/` 側のテストで最終的に捕まりますが、単体テストの段階で
-気づけた方が速いです)。
-
-## 統合テストがカバーする範囲
-
-`test/integration/` は主に以下を検証します(詳細は各テストのコメント参照):
-
-- **DynamoDB**: 状態遷移の条件付き書き込みが並行レースで単一勝者になること、
-  割り当てトランザクション(`ClaimGameServer`/`AddAllocation`)の原子性、
-  楽観ロック(`UpdateFleet` の version 競合)、リーダーリースの排他性
-- **Redis(Valkey)**: 冪等キー付き並行 `Allocate` の収束、Unhealthy との
-  競合時の挙動、epoch によるプール再構築
-- **ECS(floci)**: 実際に Docker コンテナとして Task が起動すること、
-  `startedBy` を使った sidecar なりすまし検証
-- **controller のフルライフサイクル e2e**: scale-up → RUNNING イベント →
-  Ready → Allocate → STOPPED イベント → Terminated → 補充、を一通り
-  (`TestControllerLoopEndToEnd`)
-- **fleet シャーディング**: 複数 `Controller` プロセスが実 DynamoDB のリースを
-  取り合い、shard を分担すること(`TestFleetShardingSplitsAcrossTwoControllers`)
-
-新しい統合テストを書くときは `test/integration/harness_test.go` の
-`newStore(t)` / `newPool(t)` / `waitFor(t, what, timeout, cond)` を使うと、
-testcontainers のセットアップやポーリングを自前で書かずに済みます。
-
-## `-race` と既知の注意点
-
-- `make test-integration` は常に `-race` 付きです。バックグラウンド
-  goroutine から共有状態(フェイクの slice/map、テスト側のアサーション対象)に
-  触るテストを書くときは、必ず mutex で保護するかチャネル経由で同期してください
-  (「フェイクの流儀」参照)
-- `TestLeaderLease`(`test/integration/store_test.go`)はリース失効の実時間
-  待ち(`time.Sleep`)を含むため、フルスイートを `-race` 付きで回すと
-  まれにタイミングでフレーキーになることがあります。単体で再実行すれば
-  通ります — arena 側の変更が原因かどうか疑わしい場合は、まず単独実行
-  (`go test -tags integration -run TestLeaderLease ./test/integration/...`)
-  で切り分けてください
-
-## testcontainers のデバッグ
-
-`test/integration` は testcontainers が DynamoDB Local / Valkey / floci を
-自動起動・破棄します。失敗時にコンテナの中身を見たい場合:
+全 unit test の実行例を、以下に示す。
 
 ```console
-$ docker ps -a                      # テスト終了直後ならまだ残っていることがある
-$ docker logs <container-id>
+$ make test
 ```
 
-testcontainers はテスト成功時にコンテナを破棄するため、失敗を再現しつつ
-中身を見たい場合はテスト関数に一時的に `t.Skip()`/`select{}` を挟むか、
-該当コンテナのイメージ(`amazon/dynamodb-local`、`valkey/valkey`、
-`floci/floci`)を `docker run` で直接立ち上げて操作する方が手早いです。
-
-## `make gen-check`(proto 生成物の鮮度チェック)
-
-`.proto` を変更した PR では、`gen/` が最新かどうかを CI 相当でローカル確認
-できます:
+Race detector を追加する例を、以下に示す。
 
 ```console
-$ make gen-check   # make gen した上で git diff --exit-code gen/
+$ go test -race ./...
 ```
 
-git 管理下にないディレクトリで実行すると `git diff` が失敗するため、リポジトリを
-`git init` している(または実際の clone である)ことが前提です。
+Package と test 名を限定する例を、以下に示す。
+
+```console
+$ go test ./internal/controller -run TestFleetShard -v
+```
+
+各 package は必要な Store、Pool、AWS API を小さい interface で受け取り、test file 内の fake を使用する。Fake は DynamoDB と同じ condition failure、version conflict、state transition を返す必要がある。
+
+## Integration test
+
+全 integration test の command は次のとおりである。
+
+```console
+$ make test-integration
+```
+
+Make target は次の Go command を実行する。
+
+```console
+$ go test -tags integration -count=1 -race -timeout 10m ./test/integration/...
+```
+
+TestMain が起動する container を、以下に示す。
+
+| Image | 用途 |
+| --- | --- |
+| `amazon/dynamodb-local:2.5.2` | Table、index、transaction、condition expression |
+| `valkey/valkey:8.1` | Ready pool、heartbeat、epoch、Counter data |
+| `floci/floci:latest` | ECS、SQS、STS、EC2 の local API |
+
+floci の ECS は host Docker daemon で container を起動するため、`/var/run/docker.sock` へアクセスできる必要がある。
+
+## Integration test の範囲
+
+現行 suite が検証する behavior は次のとおりである。
+
+- 並行 state transition の単一勝者
+- GameServer claim と追加 Allocation の DynamoDB transaction
+- Fleet index の state prefix query
+- Fleet version conflict
+- Controller leader lease
+- 同じ idempotency key の並行 Allocation
+- 競合候補の skip と異なる key の割り当て
+- Release 後の Ready pool 復帰
+- ECS launcher と sidecar identity verifier
+- Redis pool epoch の再構築
+- Controller の起動から終了までの lifecycle
+- 複数 controller による Fleet shard 分担
+
+実 AWS service、Application Load Balancer、CloudWatch EMF 抽出、各言語の公式 Agones SDK、Terraform deployment は integration test の範囲外である。
+
+## 個別実行
+
+Integration test を 1 個だけ実行する例を、以下に示す。
+
+```console
+$ go test -tags integration -count=1 -run TestLeaderLease ./test/integration/...
+```
+
+TestMain は個別実行でも 3 container をすべて起動する。
+
+## 失敗時の確認
+
+Container 起動前後の失敗では、Docker daemon、image pull、Docker socket の permission、利用可能な port と disk 容量を確認する。
+
+DynamoDB の test failure では table 作成、GSI が ACTIVE になるまでの待機、condition expression を確認する。Valkey の failure では共有 instance に残る key と test ごとの一意な Fleet ID を確認する。floci の failure では対応する ECS または SQS API と host container の起動状態を確認する。
+
+Test は終了時に container を削除する。失敗中の container log が必要な場合は、別 terminal で `docker ps` と `docker logs` を使用する。
+
+## 生成物の確認
+
+Protobuf 変更では、以下の command を追加で実行する。
+
+```console
+$ make gen-check
+```
+
+この target は生成を行った後、`git diff --exit-code gen/` で追跡済み生成物との差分を確認する。Buf と generator の install が必要である。

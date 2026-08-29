@@ -30,5 +30,7 @@ go.work
 
 .claude/settings.local.json
 arenactl
+!docs/arenactl/
+!docs/arenactl/*.md
 .docs/
 .terraform/

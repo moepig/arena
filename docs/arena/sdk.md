@@ -1,133 +1,120 @@
-# ゲームサーバー SDK
+# GameServer SDK
 
-ゲームサーバーは同一 ECS Task 内の **SDK Sidecar**(`arena-sidecar`)と通信します。
-Sidecar は Agones 互換の gRPC API を `localhost:9357` で提供し、上流(arena-api の
-SDK Gateway)へは 1 本の双方向ストリームで多重化します。ゲームサーバーが
-DynamoDB / Redis / AWS API に触れることはありません。
+本ドキュメントは、GameServer process と `arena-sidecar` の通信、Go SDK の使用方法、Agones 互換 API を説明する。
 
-```mermaid
-flowchart LR
-    subgraph task[ECS Task]
-        GS["Game Server<br/>(pkg/sdk)"] <-->|gRPC localhost:9357| SC[arena-sidecar]
-    end
-    SC <-->|双方向ストリーム 1 本<br/>指数バックオフ再接続| GW["arena-api<br/>SDK Gateway"]
-```
+## 接続
 
-## ライフサイクル
+Sidecar は同じ ECS Task 内で 2 個の localhost endpoint を公開する。
 
-```mermaid
-sequenceDiagram
-    participant G as Game Server
-    participant S as Sidecar
-    participant A as arena-api
+| Endpoint | 既定値 | API |
+| --- | --- | --- |
+| gRPC over h2c | `localhost:9357` | Arena SDK、`agones.dev.sdk.SDK`、`agones.dev.sdk.beta.SDK` |
+| HTTP | `localhost:9358` | Agones SDK REST 互換 route |
 
-    Note over G: 初期化(マップロード等)
-    G->>S: Ready()
-    S->>A: ReadyRequest
-    A-->>S: state: Ready(プール投入)
-    loop ゲームループが生きている限り
-        G->>S: Health()
-        S->>A: Heartbeat(10 秒間隔)
-    end
-    A-->>S: state: Allocated(割り当て push)
-    S-->>G: WatchGameServer で通知
-    Note over G: マッチを実行
-    G->>S: Shutdown()
-    S->>A: ShutdownRequest(Draining → Task 停止)
-```
+GameServer process は localhost の sidecar だけに接続する。Sidecar は SDK Gateway への 1 本の双方向 stream を維持し、状態更新、heartbeat、Allocation 通知、Counter と List を転送する。
 
-1. **起動**: sidecar が自動でセッションを張る。ゲームは初期化(マップロード等)を行う
-2. **`Ready()`**: 受け入れ可能になったら呼ぶ。サーバーが割り当てプールに入る
-3. **`WatchGameServer()` / `GameServer()`**: 割り当て通知(state=ALLOCATED と
-   メタデータ)を受け取る
-4. **`Health()`**: ゲームループから定期的に呼ぶ(推奨: 数秒間隔)
-5. **`Shutdown()`**: セッション終了時に呼ぶ。Task は安全に停止・回収される
+## Arena Go SDK
 
-## Go SDK(pkg/sdk)
+公開 package は `github.com/moepig/arena/pkg/sdk` である。既定の接続先は `http://localhost:9357` であり、`ARENA_SDK_ADDRESS` で変更できる。
+
+起動、heartbeat、Allocation 待機、再利用の基本形を、以下に示す。
 
 ```go
-import "github.com/moepig/arena/pkg/sdk"
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	arenav1 "github.com/moepig/arena/gen/arena/v1"
+	"github.com/moepig/arena/pkg/sdk"
+)
 
 func main() {
-    client := sdk.New() // localhost:9357($ARENA_SDK_ADDRESS で上書き可)
-    ctx := context.Background()
+	ctx := context.Background()
+	client := sdk.New()
 
-    // 初期化が終わったら Ready
-    if err := client.Ready(ctx); err != nil { log.Fatal(err) }
+	if err := client.Ready(ctx); err != nil {
+		log.Fatal(err)
+	}
 
-    // ヘルスループ(ゲームループが生きている限り呼び続ける)
-    go func() {
-        for range time.Tick(5 * time.Second) {
-            _ = client.Health(ctx)
-        }
-    }()
+	go func() {
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := client.Health(ctx); err != nil {
+				log.Printf("health: %v", err)
+			}
+		}
+	}()
 
-    // 割り当てを待つ
-    _ = client.WatchGameServer(ctx, func(gs *arenav1.GameServer) {
-        if gs.GetState() == arenav1.GameServer_STATE_ALLOCATED {
-            startMatch(gs.GetLabels(), gs.GetAnnotations())
-        }
-    })
+	if err := client.WatchGameServer(ctx, func(gs *arenav1.GameServer) {
+		if gs.GetState() == arenav1.GameServer_STATE_ALLOCATED {
+			log.Printf("allocated: %s", gs.GetAnnotations()["session"])
+		}
+	}); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
-| メソッド | 説明 |
-|---------|------|
-| `Ready(ctx)` | Starting → Ready(割り当て可能に) |
-| `Health(ctx)` | 生存報告(下記「ヘルスの仕組み」) |
-| `Shutdown(ctx)` | 終了通知(Draining → Task 停止) |
-| `GameServer(ctx)` | 現在の GameServer(IP / ports / labels / 状態) |
-| `SetLabel(ctx, k, v)` | ラベル設定(割り当てセレクタの対象) |
-| `SetAnnotation(ctx, k, v)` | アノテーション設定 |
-| `WatchGameServer(ctx, fn)` | 状態変化のストリーム(割り当て push 含む) |
+Go client の method を、以下に示す。
 
-他言語はネイティブ gRPC クライアントで `arena/v1/sdk.proto` の `SDK` サービスを
-`localhost:9357` に対して呼び出してください(Agones SDK と同じ操作モデル)。
+| Method | 振る舞い |
+| --- | --- |
+| `Ready` | Starting、Allocated、Reserved から Ready へ移行する |
+| `Health` | Game process の生存を sidecar へ通知する |
+| `Shutdown` | GameServer を Draining へ移行する |
+| `GameServer` | Sidecar が保持する現在の GameServer を取得する |
+| `SetLabel` | Allocation selector から参照できる label を設定する |
+| `SetAnnotation` | Annotation を設定する |
+| `WatchGameServer` | 状態更新を stream で受け取る |
 
-### Agones との互換性
+Arena Go SDK は `Reserve`、self `Allocate`、Counter、List を wrapper として公開していない。これらが必要な場合は生成済み Connect client または Agones 互換 API を使用する。
 
-`Ready / Health / Shutdown / GetGameServer / SetLabel / SetAnnotation / WatchGameServer /
-Reserve / Allocate`(自己割り当て)はすべて Agones と同じセマンティクスで実装済みです。
+## Heartbeat
 
-さらに sidecar は同じ `:9357` で本物の `agones.dev.sdk.SDK` サービスも提供して
-いるため、**Unity / Unreal / C# / C++ / Rust / Node など公式 Agones SDK をコード
-変更なしに接続できます**。加えて `:9358` に手書きの Agones 互換 REST(HTTP+JSON)
-エンドポイントがあり、gRPC クライアントを持たない言語からも利用できます。
-Counters/Lists(`agones.dev.sdk.beta.SDK` の `GetCounter` / `UpdateCounter` /
-`GetList` / `UpdateList` / `AddListValue` / `RemoveListValue`)も同様にワイヤ互換
-です。詳細な機能対応表・既知の差分は [agones-migration.md](agones-migration.md)
-を参照してください。
+Sidecar は既定で 10 秒ごとに Redis へ heartbeat を送る。Game process が一度も `Health` を呼んでいない間は、sidecar が heartbeat を継続する。最初の `Health` 呼び出し後は、30 秒間 `Health` がない場合に upstream heartbeat を停止する。
 
-## ヘルスの仕組み
+Controller は Ready、Allocated、Reserved の GameServer について 30 秒ごとに heartbeat を確認し、Ready または Allocation から 60 秒間は失効判定を行わない。Sidecar の 10 秒間隔、30 秒 timeout、controller の 30 秒 sweep と 60 秒猶予は command-line で変更できない。
 
-- sidecar は **10 秒間隔**でハートビートを上流へ送る(Redis TTL 30 秒)
-- ゲームが一度でも `Health()` を呼ぶと、それ以降 **30 秒以内に次の `Health()` が
-  来なければ sidecar はハートビート送信を止める** → controller が失効を検知して
-  Unhealthy → Task 停止 → 自動補充。これが「プロセスは生きているがゲームループが
-  ハングした」ケースの検知手段です
-- `Health()` を一度も呼ばないサーバーは Task 生存のみで健全とみなされる
-  (起動直後の grace はサーバー側でも 60 秒確保される)
+Fleet API の HealthSpec は初期猶予、期待間隔、失敗回数を保持するが、現行 controller は `disabled` 以外の値を失効判定に使用しない。Arenactl manifest は `disabled` を表現しない。
 
-## 割り当て通知の信頼性
+## 状態通知
 
-割り当て push は at-most-once です。落ちても:
+`WatchGameServer` は Allocation による状態変化と metadata 更新を受信する。SDK Gateway との接続が切れた場合、sidecar は再接続を試行する。再接続後には DynamoDB の現在状態が送られる。
 
-- sidecar の再接続時に gateway が現在状態を必ず再送する
-- `GameServer()` はいつでも最新状態を返す
+GameServer をセッション終了後も再利用する場合は `Ready` を呼ぶ。Active Allocation record は解放され、GameServer は Ready pool へ戻る。Task を終了する場合は `Shutdown` を呼ぶ。
 
-ため、`WatchGameServer` の受信のみに依存せず、状態(`STATE_ALLOCATED`)で判定してください。
+## Reserve と self Allocation
 
-## Sidecar の設定
+`Reserve` は Ready GameServer を Ready pool から外し、縮小から保護する。期間 0 は `Ready`、`Allocate`、`Shutdown` のいずれかが呼ばれるまで保持する。正の期間は秒単位で指定し、期限後に Ready へ戻る。
 
-sidecar コンテナは controller が Task Definition に自動注入します。手動実行時:
+SDK の `Allocate` は GameServer 自身を Ready または Reserved から Allocated へ移行する。この Allocation には `arena.dev/self-allocated=true` metadata が付く。
 
-| フラグ / 環境変数 | 既定値 | 説明 |
-|------------------|-------|------|
-| `-listen` | `localhost:9357` | ローカル SDK の listen アドレス |
-| `-gateway` / `$ARENA_GATEWAY_ENDPOINT` | — | arena-api の SDK Gateway URL(必須) |
-| `-gameserver-id` / `$ARENA_GAMESERVER_ID` | — | GameServer ID(controller が注入。必須) |
+## Counter と List
 
-- Task ARN は ECS メタデータエンドポイントから自動検出され、gateway での
-  なりすまし検証([api.md](api.md#sidecar-の認証別系統))に使われる
-- 上流ストリームは切断時に指数バックオフ(1s→…→30s)で再接続する。切断中に
-  発行された `Ready()` 等は再接続後に送信される
+Agones beta SDK の Counter と List は sidecar process 内の memory を一次状態として扱う。変更時、30 秒ごと、SDK Gateway 再接続時に全 snapshot を Redis へ同期する。
+
+Counter は count と capacity を持ち、Allocation filter、priority、高密度 Allocation、Fleet 集計、Counter autoscaling に使用する。List は capacity と string value の集合を持つ。Sidecar の再起動では process 内の Counter と List が失われるため、ゲーム側で再設定する必要がある。
+
+## Agones 互換 API
+
+Sidecar は `agones.dev.sdk.SDK` の Ready、Allocate、Shutdown、Health、GetGameServer、WatchGameServer、SetLabel、SetAnnotation、Reserve を実装する。Beta service は GetCounter、UpdateCounter、GetList、UpdateList、AddListValue、RemoveListValue を実装する。
+
+REST endpoint が提供する route を、以下に示す。
+
+| Method と path | 操作 |
+| --- | --- |
+| `POST /ready` | Ready |
+| `POST /allocate` | Self Allocation |
+| `POST /shutdown` | Shutdown |
+| `POST /health` | Health |
+| `POST /reserve` | Reserve |
+| `PUT /metadata/label` | Label 更新 |
+| `PUT /metadata/annotation` | Annotation 更新 |
+| `GET /gameserver` | 現在状態 |
+| `GET /watch/gameserver` | 改行区切りの状態 stream |
+
+互換範囲と移行時の差分は、[../agones-migration.md](../agones-migration.md) を参照。

@@ -1,65 +1,54 @@
-# 開発者ガイド
+# 開発者向け情報
 
-arena 自体のコードに手を入れる開発者向けのドキュメントです。arena を
-デプロイ・運用する人は [arena/operations.md](../arena/operations.md)、
-ゲームサーバーに SDK を組み込む人は [arena/sdk.md](../arena/sdk.md) を
-参照してください。
+本ドキュメントは、Arena 自体を変更するための開発環境、リポジトリ構成、関連文書を説明する。
 
-- [workflow.md](workflow.md) — proto 変更・ローカル実行・機能追加の手順、コミット前チェックリスト
-- [testing.md](testing.md) — テスト戦略(単体/統合)、実行方法、既知の注意点
+## 必要な tool
 
-## 前提ツール
+開発内容ごとの tool を、以下にまとめる。
 
-| ツール | バージョン目安 | 用途 |
-|-------|--------------|------|
-| Go | 1.26+(`go.mod` の `go` ディレクティブが正) | ビルド・テスト全般 |
-| Docker | 動作するもの(daemon 起動済み) | `make test-integration`(testcontainers)、`make compose-up` |
-| buf / protoc-gen-go / protoc-gen-connect-go / protoc-gen-connect-openapi | 固定なし(`@latest`) | `.proto` を変更する時のみ必要。`make tools` が `$GOBIN` に未インストールなら自動 `go install`(**ネットワークアクセスが要る**) |
+| Tool | 必要となる作業 |
+| --- | --- |
+| Go 1.26 以上 | Build、unit test、すべての Go 変更 |
+| Docker | Integration test、local service の起動 |
+| Buf と protobuf plugin | `.proto` と生成物の更新 |
+| Terraform | `samples/terraform` の検証 |
 
-`.proto` に触らない変更(Go コードのみ)であれば、Docker と buf 系ツールは
-`make test-integration` を回すとき以外は不要です。
+`make tools` は Buf、`protoc-gen-go`、`protoc-gen-connect-go`、`protoc-gen-connect-openapi` が `$GOPATH/bin` にない場合、`@latest` で install する。Network access が必要であり、version は lock されていない。
 
 ## リポジトリ構成
 
-| パス | 内容 |
-|------|------|
-| `api/proto/` | protobuf 定義(`arena/v1`、`arena/gateway/v1`、ベンダリングした `agones/dev/sdk`) |
-| `gen/` | `buf generate` の生成物(Go + connect-go + OpenAPI)。**手で編集しない**、`make gen` で再生成 |
-| `internal/store/` | DynamoDB 永続化層(唯一の Source of Truth)。状態機械・条件付き書き込み |
-| `internal/pool/` | Redis 派生データ層(Ready プール、ハートビート、pub/sub、Counter 補助 ZSET) |
-| `internal/convert/` | store レコード ⇔ proto メッセージの相互変換 |
-| `internal/allocation/` | 割り当てホットパス(ロックフリー fast path + セレクタ slow path) |
-| `internal/controller/` | Fleet/Health/Autoscale reconciler、リーダー選出・シャーディング、SQS イベントコンシューマ |
-| `internal/api/` | `arena-api` の RPC ハンドラ(バリデーション含む) |
-| `internal/gateway/` | SDK Gateway(sidecar との双方向ストリーム終端) |
-| `internal/sidecar/` | sidecar 本体(Agones 互換 SDK サーバー、Counters/Lists) |
-| `internal/ecs/` | ECS API ラッパー(Task 起動・停止・sidecar 認証) |
-| `internal/manifest/` | `arenactl` の YAML ⇔ proto 変換 |
-| `internal/router/` | マルチリージョン allocation router |
-| `internal/auth/` | IAM ベース認証・認可 |
-| `internal/telemetry/` | EMF メトリクス・Prometheus エクスポート・OTel トレーシング |
-| `cmd/arena-api/`、`cmd/arena-controller/`、`cmd/arena-sidecar/`、`cmd/arena-router/`、`cmd/arenactl/` | 各バイナリの `main` パッケージ(薄い配線のみ、ロジックは `internal/`) |
-| `pkg/sdk/` | ゲーム開発者向け公開 Go クライアント SDK |
-| `test/integration/` | 実バックエンド(testcontainers)を使う統合テスト。build tag `integration` |
-| `deploy/terraform/` | AWS インフラの IaC |
-| `deploy/grafana/` | ダッシュボード定義 |
-| `docs/` | 本ドキュメント一式。索引は [overview.md](../overview.md) |
+主要な path を、以下にまとめる。
 
-## 5 分クイックスタート
+| Path | 内容 |
+| --- | --- |
+| `api/proto/arena/v1` | 公開 control-plane API と local SDK |
+| `api/proto/arena/gateway/v1` | Sidecar と `arena-api` の内部 stream protocol |
+| `api/proto/agones` | Agones 互換 SDK protobuf |
+| `gen` | `buf generate` による Go と OpenAPI の生成物 |
+| `cmd` | 5 個の server、sidecar、CLI entry point |
+| `internal/api` | Control-plane RPC handler |
+| `internal/allocation` | Allocation algorithm |
+| `internal/auth` | IAM token と role authorization |
+| `internal/controller` | Reconcile、autoscaling、event、lease、Redis rebuild |
+| `internal/ecs` | ECS Task Definition、RunTask、StopTask、identity 検証 |
+| `internal/gateway` | SDK Gateway |
+| `internal/manifest` | Fleet YAML の decode と encode |
+| `internal/pool` | Redis 派生データ |
+| `internal/router` | Multi-region Allocation routing |
+| `internal/sidecar` | Arena SDK と Agones 互換 SDK |
+| `internal/store` | DynamoDB record と operation |
+| `internal/telemetry` | EMF、OpenMetrics、OpenTelemetry |
+| `pkg/sdk` | 外部 import を想定する Arena Go SDK |
+| `test/integration` | Build tag `integration` の backend 統合 test |
+| `samples/terraform` | AWS resource 構成例 |
+| `docs` | 利用者、運用、開発向け文書 |
 
-```console
-$ go build ./...
-$ make test                # 単体テスト(Docker 不要)
-$ make test-integration    # 統合テスト(Docker が要る。初回はイメージ pull が走る)
-```
+`internal` 以下は module 外から import できない。外部の game server code が import する package は `pkg/sdk` である。
 
-ローカルで実際に arena-api / arena-controller を動かして触ってみたい場合は
-[workflow.md#ローカルでエンドツーエンドに動かす](workflow.md#ローカルでエンドツーエンドに動かす)
-を参照してください。
+## 開発文書
 
-## アーキテクチャを理解する
+通常の変更手順、protobuf 生成、文書更新は、[workflow.md](workflow.md) を参照。
 
-コードを読む前に、以下の設計ドキュメントに目を通すと理解が早いです。
+Unit test と integration test の分担は、[testing.md](testing.md) を参照。
 
-- [arena/architecture.md](../arena/architecture.md) — 設計原則・データモデル・状態機械・障害耐性
-- [agones-migration.md](../agones-migration.md) — Agones との機能ギャップ・既知の差分
+System のデータ境界と処理の関係は、[../arena/architecture.md](../arena/architecture.md) を参照。
