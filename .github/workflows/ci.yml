@@ -41,9 +41,9 @@ jobs:
       - integration
     if: ${{ always() }}
     steps:
-      - env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: node -e 'const jobs = JSON.parse(process.env.RESULTS); if (!Object.values(jobs).every(job => job.result === "success")) process.exit(1)'
+      - name: Require every CI job to succeed
+        if: ${{ needs['tests'].result != 'success' || needs['integration'].result != 'success' }}
+        run: exit 1
 concurrency:
   group: ${{ format('ci-{0}', github.ref) }}
   cancel-in-progress: true

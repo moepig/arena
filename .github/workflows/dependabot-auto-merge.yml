@@ -1,0 +1,47 @@
+name: Dependabot auto-merge
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+      - edited
+      - labeled
+      - unlabeled
+permissions:
+  contents: read
+concurrency:
+  group: ${{ format('dependabot-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: false
+jobs:
+  dependabot:
+    if: ${{ vars.DEPENDABOT_AUTO_MERGE == 'true' && github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      PR_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ github.token }}
+      - name: Approve and queue minor or patch updates
+        if: ${{ (steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch') && !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'breaking-change') }}
+        run: |-
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash --match-head-commit "$PR_SHA" --subject "$PR_TITLE" --body "$PR_BODY" "$PR_URL"
+      - name: Keep other updates for manual review
+        if: ${{ always() && (steps.metadata.outcome != 'success' || !(steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch') || github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'breaking-change')) }}
+        run: |-
+          auto_merge=$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')
+          if [ "$auto_merge" = true ]; then gh pr merge --disable-auto "$PR_URL"; fi
