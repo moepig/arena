@@ -1,0 +1,32 @@
+name: Distribute release
+on:
+  workflow_call:
+    inputs:
+      release-id:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+      sha:
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: verify
+          release-id: ${{ inputs.release-id }}
+          tag: ${{ inputs.tag }}
+          sha: ${{ inputs.sha }}

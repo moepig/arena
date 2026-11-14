@@ -1,0 +1,102 @@
+name: Release control
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: 7,37 * * * *
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        options:
+          - reconcile
+          - hold
+          - resume
+          - preview
+        default: reconcile
+      initial-version:
+        type: string
+        description: Confirm the initial manifest version for a repository without releases
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: release-control
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      checks: write
+      actions: read
+    outputs:
+      pending: ${{ steps.discover.outputs.pending }}
+      release-id: ${{ steps.discover.outputs.release-id }}
+      tag: ${{ steps.discover.outputs.tag }}
+      sha: ${{ steps.discover.outputs.sha }}
+    steps:
+      - id: prepare
+        uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: prepare
+          operation: ${{ inputs.operation || 'reconcile' }}
+          initial-version: ${{ inputs.initial-version }}
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        if: ${{ steps.prepare.outputs.run-release-please == 'true' }}
+        with:
+          token: ${{ github.token }}
+          target-branch: main
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-release: ${{ steps.prepare.outputs.skip-github-release == 'true' }}
+      - id: discover
+        if: ${{ steps.prepare.outputs.skip-github-release != 'true' }}
+        uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: discover
+      - if: ${{ always() }}
+        uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: ready
+  distribute:
+    needs: reconcile
+    if: ${{ needs.reconcile.outputs.pending == 'true' }}
+    uses: ./.github/workflows/distribute.yml
+    with:
+      release-id: ${{ needs.reconcile.outputs.release-id }}
+      tag: ${{ needs.reconcile.outputs.tag }}
+      sha: ${{ needs.reconcile.outputs.sha }}
+    permissions:
+      contents: write
+      packages: write
+      issues: read
+      pull-requests: read
+      actions: read
+  publish:
+    needs:
+      - reconcile
+      - distribute
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      checks: write
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: finalize
+          release-id: ${{ needs.reconcile.outputs.release-id }}
+          tag: ${{ needs.reconcile.outputs.tag }}
+          sha: ${{ needs.reconcile.outputs.sha }}

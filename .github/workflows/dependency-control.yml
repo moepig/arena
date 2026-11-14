@@ -1,0 +1,46 @@
+name: Dependency control
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - converted_to_draft
+      - edited
+      - labeled
+      - unlabeled
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  schedule:
+    - cron: 17,47 * * * *
+  workflow_dispatch: {}
+permissions:
+  contents: read
+concurrency:
+  group: dependency-control
+  cancel-in-progress: false
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: write
+      actions: read
+      issues: read
+    steps:
+      - uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: dependencies
+      - uses: moepig/flexi/.github/actions/dependency-release@0de782a2a86360049265211687891636fb9c80a5
+        with:
+          token: ${{ github.token }}
+          mode: ready
