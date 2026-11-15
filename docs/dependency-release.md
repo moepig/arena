@@ -73,6 +73,22 @@ flowchart TD
 
 破線の配置作業は、この GitHub Actions ワークフローでは実行しない。
 
+## リリース時に人が行う操作
+
+[導入条件](#導入条件)の設定後、App が作成したリリース PR を開き、次の順で操作する。CI またはレビュー条件を満たさない場合は、マージを保留する。
+
+| 操作 | 方法 |
+| --- | --- |
+| リリース内容の確認 | Files changed でバージョンと変更履歴を確認する |
+| CI の確認 | PR の Checks で必須 ci の成功を確認する |
+| [PR の承認](https://docs.github.com/en/pull-requests/how-tos/review-pull-requests/approving-a-pull-request-with-required-reviews) | Files changed → Review changes → Approve → Submit review |
+| [公開を開始するマージ](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request) | PR 下部の Squash and merge を選び、マージを確定する |
+| 公開処理の確認 | Actions → Release Please でマージ後の main の実行が成功したか確認する |
+| 成果物の確認 | Releases で対象タグのソース Release が公開済みか確認する |
+| AWS へデプロイする場合 | [AWS 配置条件](arena/operations.md#aws-配置条件)を満たし、公開タグのコードを環境別の手順で配置する |
+
+マージ後のタグ作成と Release の公開はワークフローが行う。失敗した場合は Actions のログを確認し、[再実行の条件](#失敗時の再実行)に従う。
+
 ## 失敗時の再実行
 
 配布先への書き込み前なら、失敗したジョブを再実行する。一部配布後は再実行を止め、管理者が draft、添付、GHCR を調査する。原則として修正版を別バージョンで公開する。同名ファイルを上書きしない。
