@@ -4,7 +4,7 @@
   "always-update": true,
   "include-component-in-tag": false,
   "include-v-in-tag": true,
-  "draft": true,
+  "draft": false,
   "force-tag-creation": true,
   "bump-minor-pre-major": false,
   "bump-patch-for-minor-pre-major": false,
