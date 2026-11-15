@@ -27,6 +27,8 @@ Go の vet・race test・build と、DynamoDB Local・Valkey・floci を使う�
 
 ## 導入条件
 
+初回の設定は、管理用リポジトリの [API・CLI による導入手順](https://github.com/moepig/github/blob/main/docs/operations/automation-setup.md)に従う。
+
 専用 GitHub App、main 限定の automation Environment、必須 ci、レビュー、CODEOWNERS、immutable releases を設定してから導入する。実イベントの受入が済むまで DEPENDABOT_AUTO_MERGE は false とする。
 
 ## 依存更新
@@ -97,4 +99,4 @@ flowchart TD
 
 有効化変数を false にし、ワークフローを無効化する。実行中・待機中の実行をキャンセルし、終了を確認してから各 PR の auto-merge を解除する。最後に実行と予約を再確認する。公開停止中はリリース PR をマージしない。
 
-管理者による App・保護設定の操作は、[GitHub 設定の管理](https://github.com/moepig/github/blob/automation/dependency-release/docs/management.md)を参照する。
+管理者による App・保護設定の操作は、[GitHub 設定の管理](https://github.com/moepig/github/blob/main/docs/management.md)を参照する。
