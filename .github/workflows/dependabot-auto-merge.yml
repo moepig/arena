@@ -1,0 +1,69 @@
+name: Dependabot auto-merge
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
+permissions:
+  contents: read
+concurrency:
+  group: dependabot-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  dependabot:
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    environment: automation
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    env:
+      GH_REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      - id: current
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          script: >-
+            return (await github.rest.pulls.get({...context.repo, pull_number: context.issue.number})).data;
+      - name: Clear previous reservation
+        if: ${{ fromJSON(steps.current.outputs.result).auto_merge != null }}
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: gh pr merge "$PR_NUMBER" --disable-auto
+      - id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98
+        with:
+          github-token: ${{ github.token }}
+      - name: Approve reviewed head
+        if: >-
+          ${{ vars.DEPENDABOT_AUTO_MERGE == 'true'
+          && fromJSON(steps.current.outputs.result).state == 'open'
+          && !fromJSON(steps.current.outputs.result).draft
+          && fromJSON(steps.current.outputs.result).base.ref == 'main'
+          && fromJSON(steps.current.outputs.result).head.sha == github.event.pull_request.head.sha
+          && steps.metadata.outputs.package-ecosystem == 'go_modules'
+          && contains(fromJSON('["version-update:semver-minor","version-update:semver-patch"]'), steps.metadata.outputs.update-type)
+          && steps.metadata.outputs.updated-dependencies-json != ''
+          && steps.metadata.outputs.updated-dependencies-json != '[]'
+          && fromJSON(steps.metadata.outputs.updated-dependencies-json)[1] == null
+          && contains(fromJSON('["version-update:semver-minor","version-update:semver-patch"]'), fromJSON(steps.metadata.outputs.updated-dependencies-json)[0].updateType) }}
+        id: approve
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: gh api --method POST "repos/$GH_REPO/pulls/$PR_NUMBER/reviews" -f event=APPROVE -f commit_id="$PR_SHA"
+      - name: Reserve merge
+        if: ${{ steps.approve.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$PR_SHA"

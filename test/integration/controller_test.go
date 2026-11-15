@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	awsecs "github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -38,25 +39,85 @@ func templateJSON(t *testing.T, image string) string {
 
 func newLauncher(t *testing.T, cluster string) *ecs.Launcher {
 	t.Helper()
+	subnet, group := newNetwork(t)
 	client := ecsClient(t)
 	if _, err := client.CreateCluster(context.Background(), &awsecs.CreateClusterInput{
 		ClusterName: aws.String(cluster),
 	}); err != nil {
 		t.Fatalf("create cluster: %v", err)
 	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		tasks, err := client.ListTasks(ctx, &awsecs.ListTasksInput{Cluster: aws.String(cluster)})
+		if err != nil {
+			t.Errorf("list tasks for cleanup: %v", err)
+			return
+		}
+		for _, task := range tasks.TaskArns {
+			if _, err := client.StopTask(ctx, &awsecs.StopTaskInput{Cluster: aws.String(cluster), Task: aws.String(task)}); err != nil {
+				t.Errorf("stop task: %v", err)
+			}
+		}
+		if _, err := client.DeleteCluster(ctx, &awsecs.DeleteClusterInput{Cluster: aws.String(cluster)}); err != nil {
+			t.Errorf("delete cluster: %v", err)
+		}
+	})
 	return ecs.NewLauncher(client, ecs.Config{
 		Cluster:        cluster,
-		Subnets:        []string{"subnet-12345"},
-		SecurityGroups: []string{"sg-12345"},
+		Subnets:        []string{subnet},
+		SecurityGroups: []string{group},
 		// floci's ECS runs real containers, so both images must be pullable.
 		ExecutionRoleARN:  "arn:aws:iam::000000000000:role/arena-exec",
 		TaskRoleARN:       "arn:aws:iam::000000000000:role/arena-gs",
-		SidecarImage:      "busybox:latest",
+		SidecarImage:      "busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec",
 		GatewayEndpoint:   "http://arena-api:8080",
 		LogGroup:          "",
 		Region:            "us-east-1",
 		RunTasksPerSecond: 100,
 	})
+}
+
+// Creates an emulator VPC, subnet, and security group. Returns subnet and group IDs; registered cleanup removes them after the test.
+func newNetwork(t *testing.T) (string, string) {
+	t.Helper()
+	client := ec2.NewFromConfig(awsCfg(t), func(o *ec2.Options) {
+		o.BaseEndpoint = aws.String(flociEndpoint)
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	vpc, err := client.CreateVpc(ctx, &ec2.CreateVpcInput{CidrBlock: aws.String("10.89.0.0/16")})
+	if err != nil {
+		t.Fatalf("create test VPC: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := client.DeleteVpc(context.Background(), &ec2.DeleteVpcInput{VpcId: vpc.Vpc.VpcId}); err != nil {
+			t.Errorf("delete test VPC: %v", err)
+		}
+	})
+	subnet, err := client.CreateSubnet(ctx, &ec2.CreateSubnetInput{
+		VpcId: vpc.Vpc.VpcId, CidrBlock: aws.String("10.89.1.0/24"),
+	})
+	if err != nil {
+		t.Fatalf("create test subnet: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := client.DeleteSubnet(context.Background(), &ec2.DeleteSubnetInput{SubnetId: subnet.Subnet.SubnetId}); err != nil {
+			t.Errorf("delete test subnet: %v", err)
+		}
+	})
+	group, err := client.CreateSecurityGroup(ctx, &ec2.CreateSecurityGroupInput{
+		VpcId: vpc.Vpc.VpcId, GroupName: aws.String("arena-integration"), Description: aws.String("arena integration test"),
+	})
+	if err != nil {
+		t.Fatalf("create test security group: %v", err)
+	}
+	t.Cleanup(func() {
+		if _, err := client.DeleteSecurityGroup(context.Background(), &ec2.DeleteSecurityGroupInput{GroupId: group.GroupId}); err != nil {
+			t.Errorf("delete test security group: %v", err)
+		}
+	})
+	return aws.ToString(subnet.Subnet.SubnetId), aws.ToString(group.GroupId)
 }
 
 // sendTaskEvent drops a synthetic EventBridge "ECS Task State Change"
@@ -88,7 +149,7 @@ func TestLauncherAndVerifierAgainstECS(t *testing.T) {
 	launcher := newLauncher(t, "arena-it-launcher")
 	fleet := &store.Fleet{
 		ID: "f-launch", Namespace: "default", Name: "launch",
-		SpecHash: "hash1", TemplateJSON: templateJSON(t, "busybox:latest"),
+		SpecHash: "hash1", TemplateJSON: templateJSON(t, "busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"),
 	}
 
 	taskARN, err := launcher.Launch(context.Background(), fleet, "gs-launch-1")
@@ -182,7 +243,7 @@ func TestControllerLoopEndToEnd(t *testing.T) {
 	if err := st.CreateFleet(ctx, store.Fleet{
 		ID: fleetID, Namespace: "default", Name: "e2e",
 		Replicas: 1, Version: 1,
-		SpecHash: "e2e-hash", TemplateJSON: templateJSON(t, "busybox:latest"),
+		SpecHash: "e2e-hash", TemplateJSON: templateJSON(t, "busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec"),
 	}); err != nil {
 		t.Fatal(err)
 	}

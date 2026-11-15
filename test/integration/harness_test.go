@@ -99,7 +99,7 @@ func startEnvironment(ctx context.Context) (*environment, error) {
 	}
 
 	ddb, err := start(tc.ContainerRequest{
-		Image:        "amazon/dynamodb-local:2.5.2",
+		Image:        "amazon/dynamodb-local:2.5.2@sha256:d7ebddeb60fa418bcda218a6c6a402a58441b2a20d54c9cb1d85fd5194341753",
 		Cmd:          []string{"-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"},
 		ExposedPorts: []string{"8000/tcp"},
 		WaitingFor:   wait.ForListeningPort("8000/tcp"),
@@ -114,7 +114,7 @@ func startEnvironment(ctx context.Context) (*environment, error) {
 	dynamoEndpoint = "http://" + addr
 
 	valkey, err := start(tc.ContainerRequest{
-		Image:        "valkey/valkey:8.1",
+		Image:        "valkey/valkey:8.1@sha256:8f836008e0986c36adf50da714c7060cf689dbb335f61fe077939d90fa650809",
 		ExposedPorts: []string{"6379/tcp"},
 		WaitingFor:   wait.ForLog("Ready to accept connections"),
 	})
@@ -128,7 +128,7 @@ func startEnvironment(ctx context.Context) (*environment, error) {
 	// floci's ECS runs real containers, which needs the host docker socket
 	// (and root inside the container to read it).
 	floci, err := start(tc.ContainerRequest{
-		Image:        "floci/floci:latest",
+		Image:        "floci/floci:latest@sha256:5ee85db604c4aa74ac76e07ea5cc83086f37bb472bf3dbb97e34019e48efae9c",
 		ExposedPorts: []string{"4566/tcp"},
 		WaitingFor:   wait.ForListeningPort("4566/tcp"),
 		ConfigModifier: func(c *container.Config) {
