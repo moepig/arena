@@ -1,0 +1,7 @@
+/.github/ @moepig
+/release-please-config.json @moepig
+/.release-please-manifest.json @moepig
+/.goreleaser* @moepig
+/Dockerfile* @moepig
+/build/ @moepig
+/scripts/ @moepig

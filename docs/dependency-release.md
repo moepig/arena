@@ -1,46 +1,37 @@
 # 依存更新とリリース
 
-依存更新の自動マージと、リリース PR から公開する手順を説明する。Dependabot、release-please、GitHub Actions を使い、認証には GITHUB_TOKEN を使う。
+arena の CI と配布方式を示す。設定の導入と共通操作は [管理リポジトリの運用手順](https://github.com/moepig/github/blob/main/docs/operations/dependency-release.md)に従う。管理設定と実イベントの受入検証を終えてから、自動マージを有効にする。
 
 ## 公開対象と互換性
 
-公開 API、CLI の引数と出力、設定形式、保存データ、最低 Go バージョンを互換性の対象とする。GitHub Release はソースを公開する。コンテナや実行ファイルの配布は行わない。
+ソースを公開する。
+
+Release Please はルートの 1 パッケージを管理する。既存の manifest と bootstrap-sha を公開済み版に合わせて維持し、依存先の major 更新だけで製品の major を上げない。互換性を壊す製品変更は Conventional Commits の BREAKING CHANGE に記録する。
 
 ## 設定
 
-[Dependabot 設定](../.github/dependabot.yml)は更新対象とコミットの prefix、[release-please 設定](../release-please-config.json)と [manifest](../.release-please-manifest.json)は製品バージョンを管理する。必須チェックは GitHub Actions 提供の ci とする。
+CI、自動マージ、リリースは .github/workflows に定義する。保護対象は CODEOWNERS で指定し、配布するファイル名と GHCR の配布先は [.github/scripts/release-policy.json](../.github/scripts/release-policy.json)に限定する。
 
-アプリケーション依存の prefix は fix、Actions 更新は chore にする。依存ごとの配布物への影響を解析しないため、テスト専用依存の更新もリリース候補になり得る。ビルドに影響する Actions 更新をリリースに含める場合は、管理者が PR タイトルを fix で始まる形式に直してからマージする。
+専用 App の Contents: write と Pull requests: write を、依存 PR の承認・予約と Release Please に使う。秘密鍵は main だけを許可した automation Environment に置く。ビルドは読み取り権限、公開は GITHUB_TOKEN の必要な書き込み権限を使う。App ID と bot の識別子は管理リポジトリの Terraform 設定を正本とする。
 
 ## 自動マージ
 
-[Dependabot auto-merge](../.github/workflows/dependabot-auto-merge.yml)は fetch-metadata で署名と更新種別を確認する。minor・patch は bot が承認し、対象 SHA の squash auto-merge を予約する。major、更新種別不明、draft、breaking-change ラベル付きの PR は予約を解除し、管理者が確認して手動でマージする。
+署名を検証した Dependabot の同一リポジトリ・main 向けのアプリケーション依存で、minor・patch だけを対象とする。major、種別不明、Actions、Docker、draft は手動判断とする。必須 ci、最新ベース、レビュー条件を GitHub が確認する。承認と予約には確認した head SHA を指定する。
 
-導入時は main に ci、最新ベースでの検証、レビュー、push 後の承認無効化を設定する。Actions の PR 作成・承認も許可する。設定と CI の成功を確認してから、リポジトリ変数 DEPENDABOT_AUTO_MERGE を true にする。
+保留には draft を使い、API で状態と予約解除を確認する。breaking-change ラベルは保留条件にしない。metadata 取得失敗や対象外では予約解除を試み、失敗も通知する。自動マージを無効にしても予約解除を省略しない。
 
 ## 公開
 
-[Release Please](../.github/workflows/release-please.yml)は main への push と手動実行で起動する。定期実行は行わない。前回リリース以降に fix・feat などの対象変更があれば、リリース PR を作成する。既存 PR があれば更新し、対象変更がなければ新規 PR は作成しない。
+App による依存 PR の実際のマージが main の push を起こし、Release Please がリリース PR を作成・更新する。PR の CI は自動で開始する。人がバージョン、変更履歴、互換性、CI を確認して手動マージする。
 
-GITHUB_TOKEN による依存 PR の自動マージでは push ワークフローが起動しない。自動マージ後に PR を作成・更新するには、Actions の Release Please から Run workflow を選び、main を指定して実行する。
+その push でタグと draft を作成する。同じ release-please.yml の後続ジョブが対象を検査し、必要なビルドと公開を行う。ソースのみの場合はビルドを省略する。公開ジョブは release-manifest.json を最初に添付し、既存の配布物と照合して不足分だけを追加する。
 
-PR の作成から公開までの流れを、次の図に示す。
+全配布物を照合して draft を解除した後、SemVer の最大の正式版だけで Latest を更新する。古い版やプレリリースは Latest を変更しない。既存の添付やバージョンタグを上書きしない。
 
-```mermaid
-flowchart TD
-    trigger["main への push または手動実行"] --> changes{"未公開の fix・feat などがあるか"}
-    changes -->|ない| none["新規リリース PR は作成しない"]
-    changes -->|ある| pr["リリース PR を作成・更新"]
-    pr --> review["管理者が CI と内容を確認"]
-    review --> merge["リリース PR を main へ手動マージ"]
-    merge --> rerun["マージ時の push で公開処理を自動開始"]
-    rerun --> publish["タグを作成してソースを公開"]
-```
+## 失敗時の再実行
 
-リリース PR は管理者が手動でマージする。CI が承認待ちなら開始を承認し、バージョン、変更履歴、CI、互換性を確認する。マージに伴う main への push で Release Please が自動起動し、タグと GitHub Release を作成する。公開を始めるための追加操作は不要である。
+元の実行が残っていれば失敗したジョブを再実行する。期間超過や出力喪失時は、main の release-please.yml に既存の release_id だけを指定する。タグや SHA を任意入力しない。
 
-release-please がソースの GitHub Release を直接公開する。公開を止める場合は Release Please を無効にし、停止中はリリース PR をマージしない。
+復旧は専用 App の PR、人による最終 head の承認、タグ、main の履歴、manifest の版を照合する。元の artifact を再利用するときも実行元と digest を検査する。記録と配布物が一致しない場合は停止する。公開済み Release の復旧は Latest の修復だけを行う。
 
-既存リリースがないため、manifest の基準バージョンは仮に 0.1.0 としている。導入 PR で基準バージョンと bootstrap-sha を確認し、異なる値を使う場合は設定を修正する。
-
-セキュリティ修正の根拠登録は行わず、GitHub 標準の通知から公開時期を判断する。自動マージを止める場合は DEPENDABOT_AUTO_MERGE を false にし、予約済み PR の auto-merge も解除する。
+停止、再開、鍵の失効、受入記録は [共通の操作手順](https://github.com/moepig/github/blob/main/docs/operations/dependency-release.md)に従う。

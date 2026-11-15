@@ -1,47 +1,130 @@
 name: Dependabot auto-merge
 on:
   pull_request_target:
-    branches:
-      - main
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
-      - edited
-      - labeled
-      - unlabeled
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, edited]
 permissions:
   contents: read
 concurrency:
-  group: ${{ format('dependabot-{0}', github.event.pull_request.number) }}
+  group: dependabot-${{ github.event.pull_request.number }}
   cancel-in-progress: false
+  queue: max
 jobs:
   dependabot:
-    if: ${{ vars.DEPENDABOT_AUTO_MERGE == 'true' && github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
+    if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    environment: automation
+    timeout-minutes: 10
     permissions:
-      contents: write
-      pull-requests: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-      PR_URL: ${{ github.event.pull_request.html_url }}
-      PR_SHA: ${{ github.event.pull_request.head.sha }}
-      PR_TITLE: ${{ github.event.pull_request.title }}
-      PR_BODY: ${{ github.event.pull_request.body }}
+      contents: read
+      pull-requests: read
     steps:
       - id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98
         with:
           github-token: ${{ github.token }}
-      - name: Approve and queue minor or patch updates
-        if: ${{ (steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch') && !github.event.pull_request.draft && !contains(github.event.pull_request.labels.*.name, 'breaking-change') }}
-        run: |-
-          gh pr review --approve "$PR_URL"
-          gh pr merge --auto --squash --match-head-commit "$PR_SHA" --subject "$PR_TITLE" --body "$PR_BODY" "$PR_URL"
-      - name: Keep other updates for manual review
-        if: ${{ always() && (steps.metadata.outcome != 'success' || !(steps.metadata.outputs.update-type == 'version-update:semver-minor' || steps.metadata.outputs.update-type == 'version-update:semver-patch') || github.event.pull_request.draft || contains(github.event.pull_request.labels.*.name, 'breaking-change')) }}
-        run: |-
-          auto_merge=$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')
-          if [ "$auto_merge" = true ]; then gh pr merge --disable-auto "$PR_URL"; fi
+      - id: classify
+        if: ${{ always() }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REPOSITORY: ${{ github.repository }}
+          ENABLED: ${{ vars.DEPENDABOT_AUTO_MERGE }}
+          METADATA_OK: ${{ steps.metadata.outcome == 'success' }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          DEPENDENCIES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+          MODE: classify
+        with:
+          script: |
+            const number = context.payload.pull_request.number;
+            const expected = context.payload.pull_request.head.sha;
+            const args = {owner: context.repo.owner, repo: context.repo.repo, pull_number: number};
+            const current = async () => (await github.rest.pulls.get(args)).data;
+            const eligible = (pr) => pr.user.login === 'dependabot[bot]' && pr.user.type === 'Bot' && pr.state === 'open' && !pr.draft && pr.base.ref === 'main' && pr.base.repo.full_name === process.env.REPOSITORY && pr.head.repo?.full_name === process.env.REPOSITORY && pr.head.sha === expected;
+            const ecosystems = ['go_modules', 'gomod', 'npm_and_yarn', 'npm', 'nuget'];
+            const updates = ['version-update:semver-minor', 'version-update:semver-patch'];
+            const dependencies = JSON.parse(process.env.DEPENDENCIES || '[]');
+            const metadataEligible = process.env.METADATA_OK === 'true' && ecosystems.includes(process.env.ECOSYSTEM) && updates.includes(process.env.UPDATE_TYPE) && Array.isArray(dependencies) && dependencies.length > 0 && dependencies.every(dependency => dependency.packageEcosystem === process.env.ECOSYSTEM && updates.includes(dependency.updateType));
+            const pr = await current();
+            if (process.env.ENABLED !== 'true' || !metadataEligible || !eligible(pr)) {
+              if (process.env.MODE !== 'classify' && pr.auto_merge && pr.user.login === 'dependabot[bot]') {
+                await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { pullRequest { number } } }', {id: pr.node_id});
+              }
+              return;
+            }
+            if (process.env.MODE === 'classify') {
+              core.setOutput('eligible', 'true');
+              return;
+            }
+      - id: approve-token
+        if: ${{ steps.classify.outputs.eligible == 'true' }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          skip-token-revoke: false
+      - name: Approve and reserve
+        if: ${{ steps.approve-token.outcome == 'success' }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        env:
+          REPOSITORY: ${{ github.repository }}
+          ENABLED: ${{ vars.DEPENDABOT_AUTO_MERGE }}
+          METADATA_OK: ${{ steps.metadata.outcome == 'success' }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          DEPENDENCIES: ${{ steps.metadata.outputs.updated-dependencies-json }}
+          APP_TOKEN: ${{ steps.approve-token.outputs.token }}
+          MODE: approve
+        with:
+          github-token: ${{ steps.approve-token.outputs.token }}
+          script: |
+            const number = context.payload.pull_request.number;
+            const expected = context.payload.pull_request.head.sha;
+            const args = {owner: context.repo.owner, repo: context.repo.repo, pull_number: number};
+            const current = async () => (await github.rest.pulls.get(args)).data;
+            const eligible = (pr) => pr.user.login === 'dependabot[bot]' && pr.user.type === 'Bot' && pr.state === 'open' && !pr.draft && pr.base.ref === 'main' && pr.base.repo.full_name === process.env.REPOSITORY && pr.head.repo?.full_name === process.env.REPOSITORY && pr.head.sha === expected;
+            const ecosystems = ['go_modules', 'gomod', 'npm_and_yarn', 'npm', 'nuget'];
+            const updates = ['version-update:semver-minor', 'version-update:semver-patch'];
+            const dependencies = JSON.parse(process.env.DEPENDENCIES || '[]');
+            const metadataEligible = process.env.METADATA_OK === 'true' && ecosystems.includes(process.env.ECOSYSTEM) && updates.includes(process.env.UPDATE_TYPE) && Array.isArray(dependencies) && dependencies.length > 0 && dependencies.every(dependency => dependency.packageEcosystem === process.env.ECOSYSTEM && updates.includes(dependency.updateType));
+            const pr = await current();
+            if (process.env.ENABLED !== 'true' || !metadataEligible || !eligible(pr)) {
+              if (process.env.MODE !== 'classify' && pr.auto_merge && pr.user.login === 'dependabot[bot]') {
+                await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { pullRequest { number } } }', {id: pr.node_id});
+              }
+              return;
+            }
+            if (process.env.MODE === 'classify') {
+              core.setOutput('eligible', 'true');
+              return;
+            }
+            if (!eligible(await current())) throw new Error('PR changed before approval');
+            await github.rest.pulls.createReview({...args, commit_id: expected, event: 'APPROVE'});
+            if (!eligible(await current())) throw new Error('PR changed before merge reservation');
+            await exec.exec('gh', ['pr', 'merge', '--repo', process.env.REPOSITORY, '--auto', '--squash', '--match-head-commit', expected, '--subject', pr.title, '--body', pr.body || '', String(number)], {env: {...process.env, GH_TOKEN: process.env.APP_TOKEN}});
+      - id: cleanup-token
+        if: ${{ always() && (steps.classify.outputs.eligible != 'true' || failure()) }}
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510
+        with:
+          app-id: ${{ vars.AUTOMATION_APP_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-pull-requests: write
+          skip-token-revoke: false
+      - name: Cancel reservation for ineligible or failed checks
+        if: ${{ always() && steps.cleanup-token.outcome == 'success' }}
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        with:
+          github-token: ${{ steps.cleanup-token.outputs.token }}
+          script: |
+            const args = {owner: context.repo.owner, repo: context.repo.repo, pull_number: context.payload.pull_request.number};
+            const pr = (await github.rest.pulls.get(args)).data;
+            if (pr.user.login !== 'dependabot[bot]') throw new Error('Unexpected author');
+            if (pr.auto_merge) {
+              await github.graphql('mutation($id: ID!) { disablePullRequestAutoMerge(input: {pullRequestId: $id}) { pullRequest { number } } }', {id: pr.node_id});
+            }
